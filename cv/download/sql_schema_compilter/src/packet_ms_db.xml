@@ -1,0 +1,36 @@
+<!-- ******************************************************************
+****** 
+****** Packet Defintions
+****** 
+****** CL; (CL)ient
+****** MS; (M)ain (S)erver
+****** RS; (R)oom (S)erver
+****** SS; (S)ession (S)erver
+****** RMS; (R)esource (M)anagement (S)erver
+****** DB; (DB) Proxy server
+****** 
+******************************************************************* -->
+
+<xml>
+    <namespace name="ms_db" version="32" />
+
+    <host name="MS" read="cast" write="cast" processor="./MS_DB_Process.h" interface="./MS_DB_Interface.h" handler="true"/>
+    <host name="DB" read="cast" write="cast" processor="./DB_MS_Process.h" interface="./DB_MS_Interface.h" handler="true"/>
+ 
+    <!--  RELEASE -->
+    <!--
+    <option from="MS" to="DB" abbr="MS" codeshuffle="yes" codestart="2000"/>
+    <option from="DB" to="MS" abbr="SM" codeshuffle="yes" codestart="2500"/>
+    -->
+    <!-- DEBUG -->
+    <option from="MS" to="DB" abbr="MD" codeshuffle="no" codestart="4000"/>
+    <option from="DB" to="MS" abbr="DM" codeshuffle="no" codestart="4500"/>
+ 
+    <!-- SQLCompiler에서 생성된 파일을 include -->
+    <import xml="..\_DB\GameDB.generated.xml" packet="true" error="true" table_as_copy="true"/>
+
+    <!-- SQLCompiler에서 생성된 파일을 include -->
+    <import xml="..\_DB\SystemDB.generated.xml" packet="true" error="false" table_as_copy="true"/>
+
+</xml>
+

@@ -1,0 +1,129 @@
+<xml>	
+	<!-- --------------------------------------------------------------------------- -->
+	<!-- config -->
+	<!-- --------------------------------------------------------------------------- -->
+	<config>
+		<db name="bb_system" version="32"/> <!-- increment version if backward compatibility broken -->
+		<timezone db="9" local="0"/>
+		<output type="cpp" code="SystemDB.generated.h"/>
+		<output type="packetXML" code="SystemDB.generated.xml" param1="MS" param2="DB"/>
+		<output type="MySQL" code="SystemDB_MySQL.generated.sql" param1="SystemDB_SP_MySQL.generated.sql"/>
+		<drop table="true" sp="true"/>
+		<!-- disable testdata -->
+		<rawcode_disable tag="testdata"/>
+		<select default_max_size="128"/> 
+	</config>
+    
+	<!------------------------------------------------------------------------------->
+	<!-- static system schema
+	<!------------------------------------------------------------------------------->
+ 	<!-- static_acct_info -->
+	<table name="static_acct_info" select_max_size="128" primary_key="acct_level">
+		<uint32 name="acct_level" key="true" table_index="true"/>
+		<uint32 name="max_ap"/>
+		<uint32 name="exp_to_lvup"/>
+		<uint32 name="total_exp_to_lvup"/>
+		<postfix_rawcode type="MySQL" tag="data" import_csv="../DB_data/static_acct_info.csv"/>
+	</table>
+
+	<!-- static_char_info -->
+	<table name="static_char_info" select_max_size="128" primary_key="char_index,char_level">
+		<uint32 name="char_index" key="true"/>
+		<uint32 name="char_level" key="true"/>
+		<uint32 name="exp_to_lvup"/>
+		<uint32 name="total_exp_to_lvup"/>
+		<uint32 name="char_att"/>
+		<uint32 name="char_def"/>
+		<uint32 name="char_health"/>
+		<uint32 name="char_ai"/>
+		<uint32 name="char_attr_train_time" array_size="4" array_name_format="%s_%01d" comment="att,def,health,ai"/>
+		<uint32 name="max_attr_point" comment="max attr points"/>
+		<uint32 name="attr_train_gold_cost"/>
+		<uint32 name="max_spec_point"/>
+		<postfix_rawcode type="MySQL" tag="data" import_csv="../DB_data/static_char_info.csv"/>
+	</table>
+	<generate_import_sp from="static_char_info" index="char_index,char_level" select_max_size="32"/>
+
+   	<!-- static_monster -->
+	<table name="static_monster" select_max_size="128" primary_key="monster_index">
+		<uint32 name="monster_index" key="true"/>
+		<astring max_size="50" name="monster_code" key="true" table_index="true"/>
+		<astring max_size="50" name="monster_name"/>
+		<astring max_size="50" name="reward_code"/>
+		<uint32 name="monster_grade" comment="몬스터 등급" default="0"/>
+		<uint32 name="monster_gold_min"/>
+		<uint32 name="monster_gold_max"/>
+		<uint32 name="monster_exp"/>
+		<uint32 name="Monster_Lv"/>
+		<astring max_size="50" name="Attack_Type"/>
+		<uint32 name="Item_MinDam"/>
+		<uint32 name="Item_MaxDam"/>
+		<uint32 name="Item_Att"/>
+		<uint32 name="Item_Def"/>
+		<uint32 name="Item_Health"/>
+		<float name="Dam_Slash"/>
+		<float name="Dam_Crash"/>
+		<float name="Dam_Pierce"/>
+		<uint32 name="Item_Pen"/>
+		<float name="Item_PenPer"/>
+		<float name="Item_CriPer"/>
+		<float name="Item_CriRat"/>
+		<uint32 name="Item_TrueDam"/>
+		<astring max_size="50" name="TagRule"/>
+		<postfix_rawcode type="MySQL" tag="data" import_csv="../DB_data/static_monster.csv"/>
+	</table>
+	<generate_import_sp from="static_monster" index="monster_index" select_max_size="32"/>
+
+ 	<!-- static_mission -->
+	<table name="static_mission" select_max_size="128" primary_key="mission_index">
+		<uint32 name="mission_index" key="true" table_index="true" />
+		<astring max_size="50" name="mission_code" key="true"/>
+		<astring max_size="50" name="mission_name"/>
+		<uint32 name="ap_cost" comment="ap 소모"/>
+		<uint32 name="mission_group" comment="미션 그룹" key="true"/>
+		<astring max_size="50" name="boss_monster_code"/>
+		<uint32 name="opt_monster_count" comment="잡몹 숫자"/>
+		<astring max_size="50" name="opt_monster_code" default="0" array_size="10" array_name_format="%s_%01d" comment="잡몹 코드"/>
+		<astring max_size="50" name="reward_code_if_cleard_1st" commnet="첫 클리어시 보상"/>
+
+		<uint32 name="drop_item_index" array_size="5" array_name_format="%s_%01d" default="0" comment="추가 데이터: 드랍 아이템 Index 리스트"/>
+
+		<postfix_rawcode type="MySQL" tag="data" import_csv="../DB_data/static_mission.csv"/>
+	</table>
+	<generate_import_sp from="static_mission" index="mission_index" select_max_size="32"/>
+
+ 	<!-- static_item -->
+	<table name="static_item" select_max_size="128" primary_key="item_index">
+ 		<uint32 name="item_index" key="true" table_index="true"/>
+		<astring max_size="50" name="code" key="true" comment="아이템 코드"/>
+		<astring max_size="50" name="name" comment="아이템 이름"/>
+		<uint32 name="item_tier" default="0" comment="아이템 아레나 티어"/>
+		<uint32 name="grade" default="0" comment="아이템 등급. 1:Normal 2:Uncommon ... 5: legend"/>
+		<uint32 name="max_stack" default="1" comment="아이템 최대 스택 수"/>
+		<uint32 name="max_level" default="10" comment="최대 레벨"/>
+		<astring max_size="50" name="item_desc" default="N/A" comment="아이템 설명"/>
+		<uint32 name="slot" default="255" comment="아이템 장착 부위 0:skin ... 1:weapon, 88: skill_dummy 99: skill, 255:other"/>
+		<uint32 name="evolvable_item_index" default="0" comment=" 진화 가능하면 진화 가능한 아이템 Index, 0이면 불가능"/>
+		<uint32 name="equippable_char_index" default="0" comment=" 장착 가능한 캐릭터 인덱스, 0이면 아무나 "/>
+		<uint32 name="base_sell_price" default="0"/>
+		<astring max_size="50" name="reward_code_on_use" default="0"/>
+		<uint32 name="expire_in_hours" default="0" comment="0; 무제한, 주의: stackable 아이템에 기한제한을 넣으면 좇된다"/>
+		<postfix_rawcode type="MySQL" tag="data" import_csv="../DB_data/static_item.csv"/>
+	</table>
+	<generate_import_sp from="static_item" index="item_index" select_max_size="32"/>
+
+	<!-- static_reward -->
+	<table name="static_reward" select_max_size="128" primary_key="reward_index">
+		<uint32 name="reward_index" auto_increment="1" key="true" />
+		<astring max_size="50" name="reward_code" key="true" table_index="true"/>
+		<astring max_size="50" name="expr_gold" default="0"/>
+		<astring max_size="50" name="expr_ruby" default="0"/>
+		<astring max_size="50" name="expr_honor" default="0"/>
+		<astring max_size="50" name="expr_exp" default="0"/>
+		<astring max_size="50" name="expr_ap" default="0"/>
+		<astring max_size="50" name="expr_item" default="0" array_size="20" array_name_format="%s_%01d"/>
+		<postfix_rawcode type="MySQL" tag="data" import_csv="../DB_data/static_reward.csv"/>
+	</table>
+	<generate_import_sp from="static_reward" index="reward_index" select_max_size="32"/>
+</xml>
+ 

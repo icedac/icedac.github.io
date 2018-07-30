@@ -1,0 +1,380 @@
+<xml>
+	<!-- --------------------------------------------------------------------------- -->
+	<!-- CONFIG -->
+	<!-- --------------------------------------------------------------------------- -->
+	<config>
+		<db name="bb_game" version="32"/> <!-- increment version if backward compatibility broken -->
+		<timezone db="9" local="0"/>
+		<output type="cpp" code="GameDB.generated.h"/>
+		<output type="packetXML" code="GameDB.generated.xml" param1="MS" param2="DB"/>
+		<output type="MySQL" code="GameDB_MySQL.generated.sql" param1="GameDB_SP_MySQL.generated.sql"/>
+		<drop table="true" sp="true"/>
+		<!-- disable testdata -->
+		<rawcode_disable tag="testdata"/>
+		<select default_max_size="128"/> 
+	</config>
+ 
+	<rawcode type="MySQL">
+DROP EVENT IF EXISTS `ev_on_daily_rank`;
+CREATE EVENT `ev_on_daily_rank`
+	ON SCHEDULE
+		EVERY 10 MINUTE STARTS '2000-01-01 05:00:00'
+	ON COMPLETION PRESERVE
+	ENABLE
+	COMMENT ''
+	DO call sp_balance_arena_rank(@r);	
+	</rawcode>
+
+	<!-- --------------------------------------------------------------------------- -->
+	<!-- ERROR CODE -->
+	<!-- --------------------------------------------------------------------------- -->
+    <error>
+        <code value="0" name="SUCCESS" comment="success"/>
+        <code value="1" name="ERR_GENERAL" comment="error"/>
+        <code value="2" name="ERR_NOT_IMPLEMENTED" comment="not implemented"/>
+        <code value="3" name="ERR_SESSION_SERVER" comment="session error"/>
+        <code value="4" name="ERR_HAS_PENDING_REQUEST" comment="client should wait until last response receive"/>
+
+        <code value="100" name="ERR_ALREADY_LOGGED_IN" comment="already logged in"/>
+        <code value="101" name="ERR_WRONG_VERSION" comment="wrong version"/>
+        <code value="102" name="ERR_FORCE_DISCONNECT_INACTIVE_ACCOUNT" comment="disconnect inactive account, try to logged in again"/>
+        <code value="103" name="ERR_SESSION_NOT_FOUND" comment="ERR_SESSION_NOT_FOUND"/>
+
+        <code value="200" name="ERR_WRONG_PARAMETER_ACCT_NAME" comment="wrong parameter"/>        
+        <code value="201" name="ERR_WRONG_PARAMETER_1" comment="wrong parameter: 1st"/>
+        <code value="202" name="ERR_WRONG_PARAMETER_2" comment="wrong parameter: 2nd"/>
+        <code value="203" name="ERR_WRONG_PARAMETER_3" comment="wrong parameter: 3rd"/>
+        <code value="204" name="ERR_WRONG_PARAMETER_4" comment="wrong parameter: 4th"/>
+        <code value="205" name="ERR_WRONG_PARAMETER_5" comment="wrong parameter: 5th"/>
+        <code value="206" name="ERR_WRONG_PARAMETER_COST"/>
+        <code value="299" name="ERR_WRONG_PARAMETER"/>
+
+        <code value="300" name="ERR_RESOURCE_NOT_FOUND" comment="resource not found"/>
+        <code value="301" name="ERR_RESOURCE_NOT_FOUND_SOURCE" comment="resource not found(source)"/>
+        <code value="302" name="ERR_RESOURCE_NOT_FOUND_TARGET" comment="resource not found(target)"/>
+
+        <code value="400" name="ERR_ACCESS_DENIED" comment="acess denied"/>
+        <code value="401" name="ERR_ACCESS_DENIED_PROTECTED" comment="acess denied: protected"/>
+        <code value="402" name="ERR_ACCESS_DENIED_SOURCE"/>
+        <code value="403" name="ERR_ACCESS_DENIED_TARGET"/>
+
+        <code value="500" name="ERR_DB_SERVER" comment="DB ERROR"/>
+        <code value="501" name="ERR_DB_SERVER_SQLEXCEPTION" comment="db error"/>
+        <code value="502" name="ERR_DB_SERVER_SQLWARNING" comment="db error"/>
+
+
+		<code value="1100" name="ERR_INSURFFICIENT_RESOURCE"/>
+        <code value="1101" name="ERR_INSURFFICIENT_GAME_MONEY"/>
+        <code value="1102" name="ERR_INSURFFICIENT_GAME_CASH"/>
+        <code value="1103" name="ERR_INSURFFICIENT_HONOR_POINT"/>
+        <code value="1104" name="ERR_INSURFFICIENT_AP"/>
+        <code value="1105" name="ERR_INSURFFICIENT_ITEM_MATERIAL"/>
+        <code value="1106" name="ERR_INSURFFICIENT_INVENTORY"/>
+
+        <code value="1200" name="ERR_OPERATION_NOT_READY" comment="need to wait cool time"/>
+
+        <code value="1300" name="ERR_ACCOUNT_EVENT_RAISED" comment="AccountEvent should be resolved by ResolveAccountEventReq"/>
+        <code value="1301" name="ERR_ACCOUNT_EVENT_NOT_FOUND"/>
+    </error>
+
+    <!--
+    -- THIS TABLE written for testing DB types(int8,int16)
+    -- and it won't work but I have no time so need later.
+
+    <table name="tbl_test_types">
+    	<int32  name="v_int8"/>
+    	<uint32 name="v_uint8" key="true"/>
+    	<int32  name="v_int16" key="true"/>
+    	<uint32 name="v_uint16"/>
+    	<int32  name="v_int32"/>
+    	<uint32 name="v_uint32"/>
+    	<int64 name="v_int64"/>
+    	<uint64 name="v_uint64"/>
+    	<float name="v_float"/>
+    	<double name="v_double"/>
+
+		<postfix_rawcode type="MySQL" tag="testdata">
+-- ----------------------------
+-- Records of tbl_account
+-- ----------------------------
+insert into `tbl_test_types` values ( '-1', '1', '-2', '2', '-3', '3', '-4', '4', '1.1', '2.22' );
+insert into `tbl_test_types` values ( '-10', '10', '-20', '20', '-30', '30', '-40', '40', '11.1', '22.22' );
+		</postfix_rawcode>
+    </table>
+	-->
+
+	<!-- --------------------------------------------------------------------------- -->
+	<!-- __TTTTTTT__BBBBB___L_______________________________________________________ -->
+	<!-- _____T_____B____B__L_______________________________________________________ -->
+	<!-- _____T_____BBBBB___L_______________________________________________________ -->
+	<!-- _____T_____B____B__L_______________________________________________________ -->
+	<!-- _____T_____BBBBB___LLLLLL__________________________________________________ -->
+	<!-- --------------------------------------------------------------------------- -->
+
+	<table name="tbl_account" primary_key="acct_id">
+		<uint64 name="acct_id" auto_increment="10000" comment="계정 Unique no"/>
+		<uint64 name="acct_id_external" key="true"/>
+		<astring max_size="50" name="acct_name" key="true" />
+		<astring max_size="50" name="nickname" />
+		<timestamp name="creation_time" default_current_time="true" />
+
+		<postfix_rawcode type="MySQL">
+		-- you can add any code here after 'create table'
+		</postfix_rawcode>
+
+		<postfix_rawcode type="MySQL" tag="testdata">
+		-- ----------------------------
+		-- Records of tbl_account
+		-- ----------------------------
+		insert into `tbl_account` values ('100', '100', 'icedac', '아이스닥', DEFAULT );
+		insert into `tbl_account` values ('101', '101', 'deepfry', '딥후라이', DEFAULT );			
+		</postfix_rawcode>
+	</table>
+	<copy name="client_account" comment="client copy_from">
+		<uint64 name="acct_id" auto_increment="10000" comment="계정 Unique no"/>
+		<uint64 name="acct_id_external" key="true"/>
+		<astring max_size="50" name="acct_name" key="true" />
+		<astring max_size="50" name="nickname" />
+		<timestamp name="creation_time" default_current_time="true" />
+	</copy>
+
+	<table name="tbl_account_game" primary_key="acct_id"> 
+		<uint64 name="acct_id" foreign_key="acct_id" source_table="tbl_account"/>
+		<uint32 name="acct_level" default="1" />
+		<uint32 name="acct_exp" default="0" />
+		<uint64 name="curr_char_id" default="0"/>
+		<uint32 name="gold"/>
+		<uint32 name="ruby"/>
+		<uint32 name="max_ap" default="71" comment="최대 행동력" />
+		<timestamp name="time_to_max_ap" comment="ap가 최대치가 될 시간" default_current_time="true" />
+		<uint32 name="ap_cool_time" comment='ap 쿨타임(1차는데 걸리는 초)' default="360" />
+		<timestamp name="last_logged_in" null="true"/>
+		<uint32 name="max_inventory_count" default="500" />
+		<uint32 name="last_processed_system_mail_id" default="0"/>
+		<timestamp name="time_to_free_product" null="true" array_size="10" array_name_format="%s_%01d" default="0"/>
+		<uint32 name="max_box_inventory_count" default="4" comment=""/>
+	</table>
+  
+	<!-- __TBL_CHARACTER____________________________________________________________ -->
+	<table name="tbl_character" primary_key="char_id">
+		<uint64 name="acct_id" foreign_key="acct_id" source_table="tbl_account"/>
+		<uint64 name="char_id" auto_increment="20000" key="true" />
+		<uint32 name="char_index" default="0" />
+		<uint32 name="char_level" default="1" />
+		<uint32 name="char_exp" default="0" />
+		<uint32 name="char_attr_pt" default="1" array_size="4" array_name_format="%s_%01d" comment="0:att,def,health,ai"/>
+		<astring max_size="20" name="char_spec" default="" comment="sepc string: 010021304201102"/>
+		<uint64 name="slot_item_id" array_size="10" array_name_format="%s_%01d" default="0" comment="0: char_skin 1:weapon" />
+		<uint64 name="slot_item_skill_id" array_size="10" array_name_format="%s_%01d" default="0" comment="" />
+	</table>
+ 
+	<!-- LOG: tbl_log_sell_item -->
+	<table name="tbl_log_db" primary_key="log_id">
+		<uint64 name="log_id" auto_increment="10000" /> 
+		<timestamp name="log_time" default_current_time="true" />
+		<astring max_size="512" name="msg" />
+	</table>
+
+
+	<!-- --------------------------------------------------------------------------- -->
+	<!-- __SSSS___PPPP______________________________________________________________ -->
+	<!-- _S_______P___P_____________________________________________________________ -->
+	<!-- __SSSS___PPPP______________________________________________________________ -->
+	<!-- ______S__P_________________________________________________________________ -->
+	<!-- __SSSS___P_________________________________________________________________ -->
+	<!-- --------------------------------------------------------------------------- -->
+
+	<!-- SP: sp_get_account_box -->
+	<sp name="sp_get_account_box">
+		<in>
+			<uint64 name="acct_id" /> 
+		</in>
+		<out>
+			<uint32 name="result"/>
+		</out>
+		<result_set max_size="1">
+			<!-- tbl_account -->
+			<uint64 name="acct_id" foreign_key="acct_id" source_table="tbl_account" comment="계정 Unique no"/>
+			<uint32 name="box_type" array_size="10" array_name_format="%s_%01d" default="0" comment="0; no box. 1:silver 2:gold 3: magic 4:giant 5:legend"/>
+			<uint32 name="box_arena_tier" array_size="10" array_name_format="%s_%01d" default="0; no box, 1-9"/>			
+			<timestamp name="time_to_unlock" array_size="10" array_name_format="%s_%01d" comment="box가 언락되는 시간; 0; locked" default="0000-00-00 00:00:00"/>
+		</result_set>
+		<sql type="MySQL">
+	CALL fn_check_account( acct_id, result ); IF ( result != 0 ) THEN SELECT 0 LIMIT 0; LEAVE fin; END IF;
+	-- CALL fn_check_character( char_id, result ); IF ( result != 0 ) THEN SELECT 0 LIMIT 0; LEAVE fin; END IF;
+
+	SELECT AB.*
+		FROM tbl_account_box AS AB
+		WHERE AB.acct_id = acct_id;
+
+	SET result = 0;
+		</sql>
+	</sp>
+
+	<!-- SP: sp_account_login     -->
+	<sp name="sp_account_login" comment="last_logged_in을 업데이트">
+		<in>
+			<astring max_size="50" name="acct_name" />
+			<astring max_size="50" name="ip_address" default="0.0.0.0"/>
+			<uint32 name="port" default="0"/>
+		</in>
+		<out>
+			<uint32 name="result"/>
+		</out>
+		<sql type="MySQL">
+	CALL fn_check_account( acct_id, result ); IF ( result != 0 ) THEN LEAVE fin; END IF;
+	-- CALL fn_check_character( char_id, result ); IF ( result != 0 ) THEN LEAVE fin; END IF;
+	
+	UPDATE tbl_account_game
+		SET last_logged_in = NOW()
+		WHERE tbl_account_game.acct_id = @acct_id;
+
+	INSERT INTO `tbl_log_account_login`(
+		`acct_id`, `acct_name`, `ip_address`, `port` )
+		VALUES (
+			@acct_id, acct_name, ip_address, port
+		);
+
+	SET result = 0;
+		</sql>
+	</sp>
+
+
+	<!-- SP: sp_new_item_list     -->
+	<sp name="sp_new_item_list">
+		<in>
+			<uint64 name="acct_id"/>
+			<uint32 name="new_item_index" array_size="5" array_name_format="%s_%01d"/>
+			<uint32 name="amount" array_size="5" array_name_format="%s_%01d"/>
+		</in>
+		<out>
+			<uint32 name="result"/>
+			<uint32 name="added_count"/>
+			<uint64 name="added_item_id" array_size="5" array_name_format="%s_%01d"/>
+		</out>
+		<sql>
+		</sql>
+		<sql type="MySQL">
+	CALL fn_check_account( acct_id, result ); IF ( result != 0 ) THEN LEAVE fin; END IF;
+	-- CALL fn_check_character( char_id, result ); IF ( result != 0 ) THEN LEAVE fin; END IF;
+
+	set added_count = 0;
+
+	start transaction;
+
+	if ( new_item_index_0 != 0 ) then
+		call fn_new_item( acct_id, new_item_index_0, amount_0, result, added_item_id_0 );
+		if ( result != 0 ) then rollback; leave fin; end if;
+		set added_count = added_count + 1;
+	end if;
+	if ( new_item_index_1 != 0 ) then
+		call fn_new_item( acct_id, new_item_index_1, amount_1, result, added_item_id_1 );
+		if ( result != 0 ) then rollback; leave fin; end if;
+		set added_count = added_count + 1;
+	end if;
+	if ( new_item_index_2 != 0 ) then
+		call fn_new_item( acct_id, new_item_index_2, amount_2, result, added_item_id_2 );
+		if ( result != 0 ) then rollback; leave fin; end if;
+		set added_count = added_count + 1;
+	end if;
+	if ( new_item_index_3 != 0 ) then
+		call fn_new_item( acct_id, new_item_index_3, amount_3, result, added_item_id_3 );
+		if ( result != 0 ) then rollback; leave fin; end if;
+		set added_count = added_count + 1;
+	end if;
+	if ( new_item_index_4 != 0 ) then
+		call fn_new_item( acct_id, new_item_index_4, amount_4, result, added_item_id_4 );
+		if ( result != 0 ) then rollback; leave fin; end if;
+		set added_count = added_count + 1;
+	end if;
+
+	commit;
+
+	SET result = 0;
+		</sql>
+	</sp>
+
+	<!-- ------------------------ -->
+	<!-- SP: sp_new_item     -->
+	<!-- ------------------------ -->
+	<sp name="fn_new_item">
+		<in>
+			<uint64 name="in_acct_id"/>
+			<uint32 name="new_item_index"/>
+			<uint32 name="amount"/>
+		</in>
+		<out>
+			<uint32 name="result"/>
+			<uint64 name="added_item_id"/>
+		</out>		
+		<sql>
+		</sql>
+		<sql type="MySQL">
+	CALL fn_check_account( acct_id, result ); IF ( result != 0 ) THEN LEAVE fin; END IF;
+	-- CALL fn_check_character( char_id, result ); IF ( result != 0 ) THEN LEAVE fin; END IF;
+
+	set added_item_id = 0;
+	set @found = 0;
+
+	-- 존재하는 아이템인지 확인과 max_stack 얻어오기
+	set @max_stack = 0;
+	select max_stack into @max_stack
+		from bb_system.static_item as SI
+		where SI.item_index = new_item_index;
+	if ( @max_stack = 0 ) then
+		set result = 301; -- ERR_RESOURCE_NOT_FOUND(301)
+		leave fin;
+	end if;
+
+	-- stack안되는데 amount가 1이 아니면 에러
+	if ( @max_stack = 1 and amount != 1 ) then
+		set result = 401; -- ERR_ACCESS_DENIED_PROTECTED(401)
+		leave fin;
+	end if;
+
+	-- 같은 인덱스의 아이템이 있는지 확인
+	set @exist_item_id = 0;
+	select item_id, amount into @exist_item_id, @exist_amount
+	 	from tbl_inventory as I 
+	 	where I.acct_id = in_acct_id and I.item_index = new_item_index
+	 	order by item_id DESC
+	 	limit 1;
+
+	-- Stack 되는 아이템이면 존재하는 아이템에 수량 추가
+	if ( @exist_item_id != 0 and @max_stack > 1 ) then
+		set @amount = @exist_amount + amount;
+		-- if ( @amount > @max_stack ) then set @amount = @max_stack; end if;
+		update tbl_inventory AS I
+			set I.amount = I.amount + amount
+			where I.item_id = @exist_item_id;
+		set result = 0;
+		set added_item_id = @exist_item_id;
+		leave fin;
+	end if;
+
+	-- 일단 아이템이 없으면 아이템 추가 한다.
+	insert into `tbl_inventory` (`acct_id`, `item_index`, `amount` ) values ( in_acct_id, new_item_index, amount );
+	
+	set added_item_id = LAST_INSERT_ID();
+
+	if ( added_item_id = 0 ) then
+		set result = 3; -- ACCESS_DENIED
+		set added_item_id = 0;
+		leave fin;
+	end if;
+
+	set result = 0; -- 성공
+		</sql>
+	</sp>
+
+	<!--
+		---------------------------------------------------------------------------------
+		When you add new 'sp', follow procedure need to work it out.
+		---------------------------------------------------------------------------------
+		0. MySQL DB Update
+		1. AppDBProxy; ClientSession::On_MD_sp...();
+		2. AppMainServer; DBConnection::On_MD_sp...();
+	-->
+
+</xml>
+

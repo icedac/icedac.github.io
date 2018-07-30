@@ -1,0 +1,63 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="_bootstrap">
+      <UniqueIdentifier>{a615bd58-b0c2-40a7-a89d-de53bb14d2f7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src">
+      <UniqueIdentifier>{dc0ae64d-1974-460c-a17d-ffacfb4682f5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\PacketGenerated">
+      <UniqueIdentifier>{3bf2c14b-c195-42cf-b337-de95304cb315}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="ReadMe.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="stdafx.h">
+      <Filter>_bootstrap</Filter>
+    </ClInclude>
+    <ClInclude Include="targetver.h">
+      <Filter>_bootstrap</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Packet\CL_ES_Interface.h">
+      <Filter>src\PacketGenerated</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Packet\CL_ES_Process.h">
+      <Filter>src\PacketGenerated</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Packet\ES_CL_Interface.h">
+      <Filter>src\PacketGenerated</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Packet\ES_CL_Process.h">
+      <Filter>src\PacketGenerated</Filter>
+    </ClInclude>
+    <ClInclude Include="CommonPacket.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="ClientSession.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="AppEchoServer.h">
+      <Filter>src</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="stdafx.cpp">
+      <Filter>_bootstrap</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="ClientSession.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="AppEchoServer.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+</Project>

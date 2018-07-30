@@ -1,0 +1,291 @@
+
+<xml> 
+    <namespace name="cl_ms" version="32" />
+ 
+    <rawcode type="C++">
+    enum ERoomType
+    {
+        RT_ROOM_DEFAULT = 0,
+        RT_ROOM_PVE,
+        RT_ROOM_PVP,
+        RT_ROOM_END,
+        RT_ROOM_TEST = 0xffff,
+    };
+    </rawcode>
+    <rawcode type="C#">
+    public enum ERoomType
+    {
+        RT_ROOM_DEFAULT = 0,
+        RT_ROOM_PVE,
+        RT_ROOM_PVP,
+        RT_ROOM_END,
+        RT_ROOM_TEST = 0xffff,
+    }
+    </rawcode>
+
+    <host name="CL" read="cast" write="cast" processor="./CL_MS_Process.generated.h" interface="./CL_MS_Interface.generated.h" csharpcode="./CL_MS_Class.generated.cs" handler="true"/>
+    <host name="MS" read="cast" write="cast" processor="./MS_CL_Process.generated.h" interface="./MS_CL_Interface.generated.h" handler="true"/>
+
+    <!--  RELEASE -->
+    <!--
+    <option from="CL" to="MS" abbr="CM" codeshuffle="yes" codestart="1000"/>
+    <option from="MS" to="CL" abbr="MC" codeshuffle="yes" codestart="1500"/>
+    -->
+    <!-- DEBUG -->
+    <option from="CL" to="MS" abbr="CM" codeshuffle="no" codestart="1000"/>
+    <option from="MS" to="CL" abbr="MC" codeshuffle="no" codestart="1500"/>
+
+    <!-- ========================================= -->
+    <!-- 로그인 -->
+    <!-- ========================================= -->
+  
+	<!-- shuffle: shuffle data in packet --> 
+
+	<!-- 버전체크 -->
+    <packet name="VersionCheckReq" from="CL" to="MS" ack="VersionCheckRes" shuffle="no" comment="버전 체크">
+        <uint64 name="version" comment="버전; 다르면 요청 실패"/>
+        <uint64 name="build_version" comment="빌드버전; 달라도 성공. 진행 여부는 클라이언트에서 판단"/>
+        <uint64 name="client_key" comment="reserved"/>
+    </packet>
+    <packet name="VersionCheckRes" from="MS" to="CL">
+        <uint32 name="result" comment="see @Error"/>
+        <uint64 name="required_version" comment="버전; 다르면 요청 실패"/>
+        <uint64 name="required_build_version" comment="빌드버전; 달라도 성공. 진행 여부는 클라이언트에서 판단"/>
+        <astring name="redirection_url" max_size="256" comment="버전 실패시 패치할 수 있는 URL 명시"/>
+    </packet>
+
+ 
+    <!-- 로그인 -->
+    <packet name="LoginReq" from="CL" to="MS" ack="LoginRes">
+        <uint64 name="version" comment="버전; 다르면 요청 실패"/>
+        <uint64 name="build_version" comment="빌드버전; 달라도 성공. 진행 여부는 클라이언트에서 판단"/>
+        <astring name="acct_name" max_size="50"/>
+        <astring name="acct_passwd" max_size="16"/>
+    </packet>
+    <packet name="LoginRes" from="MS" to="CL">
+        <uint32 name="result"/>
+        <uint64 name="required_version" />
+        <uint64 name="required_build_version" />
+        <astring name="acct_name" max_size="50"/>
+        <uint64 name="session_id" comment="Unique ID in Server"/>
+
+
+        <!-- tbl_account -->
+		<uint64 name="acct_id" auto_increment="10000" comment="계정 Unique no"/>
+		<uint64 name="acct_id_external" key="true"/>
+		<!-- <astring max_size="50" name="acct_name" key="true" /> -->
+		<astring max_size="50" name="nickname" />
+		<timestamp name="creation_time" comment="(UTC+0[GMT])" default_current_time="true" />
+
+        <uint32 name="char_count"/>
+
+		<!-- tbl_account_game -->
+		<uint64 name="curr_char_id" default="0"/>
+		<uint32 name="gold"/> 
+		<uint32 name="ruby"/>
+		<uint32 name="honor" default="0" comment="월계꽌" />
+		<uint32 name="max_ap" comment="최대 행동력" />
+		<timestamp name="time_to_max_ap" comment="(UTC+0[GMT]) ap가 최대치가 될 시간" default_current_time="true" />
+		<uint32 name="ap_cool_time" comment='ap 쿨타임(1차는데 걸리는 초)' default="300" />
+		<timestamp name="last_logged_in" comment="(UTC+0[GMT])" null="true" />
+
+		<uint32 name="acct_level" default="1" />
+		<uint32 name="acct_exp" default="0" />
+		<uint32 name="max_inventory_count" default="50" />
+		<uint32 name="last_processed_system_mail_id" default="0"/>
+		<timestamp name="time_to_free_product" null="true" array_size="10" array_name_format="%s_%01d" default="0"/>
+        <uint32 name="max_box_inventory_count" default="4" comment=""/>
+    </packet>
+ 
+    <!-- ========================================= -->
+    <!-- 로비 -->
+    <!-- ========================================= -->
+
+    <!-- keep alive -->
+    <packet name="KeepAliveReq" from="CL" to="MS" ack="KeepAliveRes" shuffle="no" comment="버전 체크">
+        <timestamp name="client_time" comment=""/>
+    </packet>
+    <packet name="KeepAliveRes" from="MS" to="CL">
+        <uint32 name="result" comment="see @Error"/>
+        <timestamp name="client_time" comment=""/>
+        <timestamp name="server_time" comment="서버 시간"/>
+    </packet>
+
+    <!-- 캐릭터 리스트 요청 -->
+    <packet name="ListCharacterReq" from="CL" to="MS" ack="ListCharacterRes">
+    </packet>
+    <packet name="ListCharacterRes" from="MS" to="CL">
+        <uint32 name="result" />
+        <uint64 name="curr_char_id" comment="0: no selected. happen when the account just created."/>
+		<array as_container="true" name="list" max_size="8" comment="list of characters [TODO] add more properties.">
+			<uint64 name="char_id" auto_increment="10000" />
+			<uint32 name="char_index" default="0" />
+			<uint32 name="char_level" default="1" />
+			<uint32 name="char_exp" default="0" />
+			<uint32 name="char_attr_pt" default="1" array_size="4" array_name_format="%s_%01d" comment="0:att,def,health,skillcap"/>
+			<astring max_size="20" name="char_spec" default="" comment="sepc string: 010021304201102"/>
+            <uint64 name="slot_item_id" array_size="10" array_name_format="%s_%01d" default="0" comment="0: char_skin 1:weapon 2:armor 3:acc1 4:acc2" />
+
+            <uint64 name="slot_item_skill_id" array_size="10" array_name_format="%s_%01d" default="0" comment="" />
+            <uint32 name="max_skill_slot" default="3" comment="스킬 슬롯 갯수"/>
+
+            <uint32 name="slot_vanity_item_index" array_size="5" array_name_format="%s_%01d" default="0" />
+            <uint32 name="slot_vanity_item_skill_index" array_size="10" array_name_format="%s_%01d" default="0" />
+		</array>
+    </packet>
+ 
+    <packet code_cs="false" name="RoomCreateOrJoinReq" from="CL" to="MS" ack="RoomCreateOrJoinRes">
+        <uint32 name="room_type" />
+        <uint32 name="map_type" />
+    </packet>
+    <packet code_cs="false" name="RoomCreateOrJoinRes" from="MS" to="CL">
+        <uint32 name="result" />
+        <uint32 name="room_no" />
+        <astring max_size="50" name="room_name" />
+        <astring max_size="50" name="room_passwd" />
+        <uint32 name="room_type" />
+        <uint32 name="map_type" />
+    </packet>
+
+    <packet code_cs="false" name="RoomJoinReq" from="CL" to="MS" ack="RoomJoinRes">
+        <uint32 name="room_no" />
+        <astring max_size="50" name="room_passwd" />
+    </packet>
+    <packet code_cs="false" name="RoomJoinRes" from="MS" to="CL"> <!-- identical to RoomCreateRes -->
+        <uint32 name="result" /> <!-- 1: no vacant room/no room exist 2: wrong password  3: room is full 4: already in a room -->
+        <uint32 name="room_no" />
+        <astring max_size="50" name="room_name" />
+        <astring max_size="50" name="room_passwd" />
+        <uint32 name="room_type" />
+        <uint32 name="map_type" />
+    </packet>
+    <packet code_cs="false" name="RoomLeaveReq" from="CL" to="MS" ack="RoomLeaveRes">
+        <uint32 name="room_no" />
+    </packet>
+    <packet code_cs="false" name="RoomLeaveRes" from="MS" to="CL"> <!-- identical to RoomCreateRes -->
+        <uint32 name="result" /> <!-- 1: no vacant room/no room exist 2: u r not there  3: room is full -->
+        <uint32 name="room_no" />
+    </packet>
+
+    <!-- ========================================= -->
+    <!-- 방안: Notification Messages -->
+    <!-- ========================================= -->
+
+    <packet code_cs="false" name="RoomEnterNtf" from="MS" to="CL">
+        <uint32 name="room_no" />
+        <astring max_size="50" name="acct_id" />
+        <astring max_size="50" name="conn_id" />
+        <astring max_size="50" name="char_id" />
+        <binary name="char_data" max_size="32"/>
+        <uint32 name="is_op" /> <!-- 1: room operator -->
+        <uint32 name="slot_no" />
+        <uint32 name="npc_type" /> <!-- 0: user 1,2,3,4,5: npc_AI -->
+        <uint32 name="team_type" /> <!-- initial team type -->
+        <uint32 name="ready_state" /> <!-- 1: ready -->
+    </packet>
+    <packet code_cs="false" name="RoomLeaveNtf" from="MS" to="CL">
+        <uint32 name="room_no" />
+        <uint32 name="reason" /> <!-- 0: req 1: kicked 2: connection closed -->
+        <astring max_size="50" name="acct_id" />
+        <astring max_size="50" name="conn_id" />
+        <astring max_size="50" name="char_id" />
+        <uint32 name="slot_no" />
+    </packet>
+    <packet code_cs="false" name="RoomChatNtf" from="MS" to="CL">
+        <uint32 name="room_no" />
+        <astring max_size="50" name="acct_id" />
+        <uint32 name="slot_no" />
+        <astring max_size="50" name="chat_data" />
+    </packet>
+    <packet code_cs="false" name="RoomReadyNtf" from="MS" to="CL">
+        <uint32 name="room_no" />
+        <astring max_size="50" name="acct_id" />
+        <uint32 name="slot_no" />
+        <uint32 name="ready_state" /> <!-- 1: ready -->
+    </packet>
+    <packet code_cs="false" name="RoomTeamChangedNtf" from="MS" to="CL">
+        <uint32 name="room_no" />
+        <astring max_size="50" name="acct_id" />
+        <uint32 name="slot_no" />
+        <uint32 name="team_type" />
+    </packet>
+    <packet code_cs="false" name="RoomOpChangedNtf" from="MS" to="CL">
+        <uint32 name="room_no" />
+        <astring max_size="50" name="acct_id" />
+        <uint32 name="slot_no" />
+    </packet>
+    <packet code_cs="false" name="RoomStartNtf" from="MS" to="CL">
+        <uint32 name="result" /> <!-- 0: success 1: failed(only to operator) -->
+        <uint32 name="room_no" /> <!-- in MainServer -->
+        <astring max_size="50" name="room_ip" />
+        <uint32 name="room_port" />
+        <uint32 name="room_key" />
+        <uint32 name="local_room_id" /> <!-- room_id for room_server -->
+    </packet>
+    <packet code_cs="false" name="RoomResultNtf" from="MS" to="CL">
+        <uint32 name="room_no" />
+        <uint32 name="win_team" /> <!-- 0: draw / ongoing result(game didn't finished yet) -->
+        <uint32 name="game_end" /> <!-- 1: game end, 0: game not finished, game going more -->
+        <array name="user_list" max_size="32">
+            <astring max_size="16" name="acct_id" />
+            <uint32 name="team" />
+            <uint32 name="score" />
+            <uint32 name="kill" />
+            <uint32 name="death" />
+            <uint32 name="assist" />
+            <array name="rewards" max_size="16">
+                <uint32 name="exp"/>
+                <uint32 name="gold"/>
+                <uint32 name="gem"/>
+            </array>
+        </array>
+    </packet>
+
+    <!-- ========================================= -->
+    <!-- 방안: -->
+    <!-- ========================================= -->
+    <!-- 채팅 -->
+    <packet code_cs="false" name="RoomChatReq" from="CL" to="MS" ack="RoomChatRes">
+        <uint32 name="room_no" />
+        <astring max_size="16" name="chat_data" />
+    </packet>
+    <packet code_cs="false" name="RoomChatRes" from="MS" to="CL">
+        <uint32 name="result" /> <!--1: room not exits -->
+        <uint32 name="room_no" />
+    </packet>
+    <!-- 레디 -->
+    <packet code_cs="false" name="RoomReadyReq" from="CL" to="MS" ack="RoomReadyRes">
+        <uint32 name="room_no" />
+        <uint32 name="ready_state" /> <!-- 1: ready -->
+    </packet>
+    <packet code_cs="false" name="RoomReadyRes" from="MS" to="CL">
+        <uint32 name="result" /> <!-- 1: room not exist 2:  room is not  waiting state 3: room is not startable(op) -->
+        <uint32 name="room_no" />
+        <uint32 name="ready_state" /> <!-- 1: ready -->
+    </packet>
+    <!-- 킥 -->
+    <packet code_cs="false" name="RoomKickReq" from="CL" to="MS" ack="RoomKickRes">
+        <uint32 name="room_no" />
+        <uint32 name="slot_no" />
+    </packet>
+    <packet code_cs="false" name="RoomKickRes" from="MS" to="CL">
+        <uint32 name="result" /> <!-- 0: ok, 1: room not exist  2: no permission 3: slot not found -->
+        <uint32 name="room_no" />
+        <uint32 name="slot_no" />
+    </packet>
+    <!-- NPC 추가 / 삭제는 Kick 으로 -->
+    <packet code_cs="false" name="RoomAddNPCReq" from="CL" to="MS" ack="RoomAddNPCRes">
+        <uint32 name="room_no" />
+        <uint32 name="npc_type" /> <!-- 1,2,3,4,5 : ai level -->
+    </packet>
+    <packet code_cs="false" name="RoomAddNPCRes" from="MS" to="CL">
+        <uint32 name="result" /> <!-- 0: ok, 1: room not exist  2: no permission  3: room is full 4: wrong parameter -->
+        <uint32 name="room_no" />
+        <uint32 name="npc_type" /> <!-- 1,2,3,4,5 : ai level -->
+        <uint32 name="team_type" />
+    </packet>
+
+    <!-- SQLCompiler에서 생성된 파일을 include: Error만 include 하자. -->
+    <import xml="..\_DB\GameDB.generated.xml" packet="false" error="true" copy="true"/>
+
+</xml>

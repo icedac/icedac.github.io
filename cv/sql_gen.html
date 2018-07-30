@@ -1,0 +1,1694 @@
+<!--
+	thanks for viewing source!
+
+	all codes including html, c++, sql, xml
+	by icedac@gmail.com
+
+	thanks!
+-->
+
+<!DOCTYPE html>
+<html>
+<head>
+<title>sql schema/parser generator desc.</title>
+
+<meta name="viewport" content="width=device-width"/>
+<meta name="description" content="The Curriculum Vitae of Joe Bloggs."/>
+<meta charset="UTF-8"> 
+ 
+<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js"></script>
+<link href='http://fonts.googleapis.com/css?family=Rokkitt:400,700|Lato:400,300' rel='stylesheet' type='text/css'>
+<link rel="stylesheet" href="./styles/vs2015.css">
+<script src="./highlight.pack.js"></script>
+<script>
+	$(function(){
+	    $("#btn_db_xml").click(function(){
+	        $("#db_xml").toggle();
+	    });
+	    $("#btn_db_cpp").click(function(){
+	        $("#db_cpp").toggle();
+	    });
+	    $("#btn_db_sql").click(function(){
+	        $("#db_sql").toggle();
+	    });
+	    $("#btn_db_cs").click(function(){
+	        $("#db_cs").toggle();
+	    });
+
+		$('pre code').each(function(i, block) {
+			hljs.highlightBlock(block);
+		});
+
+	});
+</script>
+<style>
+.code_block {
+	margin-left: 30px;
+}
+.code_block code {
+	height: 450px;
+}
+
+button {
+	display: inline-block;
+	-webkit-box-sizing: content-box;
+	-moz-box-sizing: content-box;
+	box-sizing: content-box;
+	float: none;
+	z-index: auto;
+	width: auto;
+	height: auto;
+	position: relative;
+	cursor: pointer;
+	opacity: 1;
+	top: 0;
+	margin: 0;
+	padding: 0 22px;
+	overflow: visible;
+	border: 2px solid #ddd;
+	-webkit-border-radius: 0;
+	border-radius: 0;
+	font: normal normal bold 20px/40px Arial, Helvetica, sans-serif;
+	color: #ddd;
+	text-align: center;
+	text-transform: uppercase;
+	-o-text-overflow: clip;
+	text-overflow: clip;
+	background: #353839;
+	-webkit-box-shadow: none;
+	box-shadow: none;
+	text-shadow: none;
+	-webkit-transition: none;
+	-moz-transition: none;
+	-o-transition: none;
+	transition: none;
+	-webkit-transform: none;
+	transform: none;
+	-webkit-transform-origin: 50% 50% 0;
+	transform-origin: 50% 50% 0;	
+}
+
+button:hover {
+color: #353839;
+background: #ddd;
+}
+
+body { 
+	background: #353839;
+	color: #ddd;
+	margin: 20px;
+}
+
+footer { 
+	margin: 30px 0 50px 0;
+}
+
+a {
+	color: #ffe28a; 
+	text-decoration: underline;
+	-webkit-transition: all .3s ease-in;
+	-moz-transition: all .3s ease-in;
+	-o-transition: all .3s ease-in;
+	-ms-transition: all .3s ease-in;
+	transition: all .3s ease-in;
+}
+
+a:hover { 
+	color: #D72D5C;
+}
+
+</style>
+
+<!--[if lt IE 9]>
+<script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+<![endif]-->
+</head>
+<body>
+
+<h1>sql schema/parser generator explained</h1>
+
+<h2>definitions</h2>
+<ul>
+	<li>sql schema/parser generator for c++/mysql
+	</li>
+	<li>protocol parser generator for c++/c#/as
+	</li>
+	<li>sql_schema.xml<br>- sql schema def. xml code</li>
+	<li>GEN_sql_schema.sql<br>- generated sql schema for MySQL</li>
+	<li>GEN_db.h<br>- generated db/sp wrapper for c++</li>
+	<li>GEN_cs/GEN_cpp<br>- generated protocol parser for c++/c#</li>
+</ul>
+
+
+<h2>why?</h2>
+
+<h3>problems with db</h3>
+
+<ul>
+	<li>db makes code duplications everywhere</li>
+	<li>if want add a field in a table: it causes</li>
+	<ul>
+		<li>modify db schema</li>
+		<li>modify db SP</li>
+		<li>modify server code fetching the field (x more than one)</li>
+		<li>modify server var definition storing the field(x more than one)</li>
+		<li>modify server var copying code inside server(x more than one)</li>
+		<li>modify server2server protocol exchanging the field</li>
+		<li><s>modify server2server protocol copying code using that das field</s>
+			<br>- need to write new logic so this is trivia</li>
+		</li>
+		<li>sometimes modify server2client protocol definition bounds that f**king field</li>
+		<li>then modify server2client protocol copying ... oops</li>
+	</ul>
+	<li>SO, I made sql schema/parser generator</li>
+</ul>
+
+<h3>and there's more profitable points</h3>
+<ul>
+	<li>can remove duplicate code with array due to sql disallow array: 'var_0', 'var_1', 'var_2' ..., 'var_12'</li>
+	<li>can remove duplicate sql query code</li>
+	<li>can add constraint to using table, stored procesures</li>
+	<li>can remove duplicate error code definition spreaded out in sql, c++, c#</li>
+	<li>can add fast fail logic version/constraints</li>
+	<li>[not implemented] can be crossplatform between mysql, mssql, nosql
+		<br>will be hard due to stored procedures or need to make global script for each stored procedures</li>
+</ul>
+
+<h2>features</h2>
+
+<ul>
+	<li>changing one code point --sql schema xml-- apply all DB schema, DB sp, server var def/copying codes</li>
+	<li>treat table/sp as structure and generate copying between db to code/code to db/code to code</li>
+	<li>db table/sp version check</li>
+	<li>array support; <br>- defines as array in sql_schema_xml and use as array from c++ codes.</li>
+	<li>one error code definition<br>- defines in sql_schema_xml and generate codes(as enum and string to debug) for c++/cs/sql</li>
+	<li>generate string size/array size checking</li>
+	<li>generate default table data insert from cvs file; mainly used for game system table</li>
+</ul>
+
+<h2>how it works</h2>
+<p>
+	<pre>
+	sql_schema_xml => (sql schema/parser generator) => GEN_sql_schema.sql
+	sql_schema_xml => (sql schema/parser generator) => GEN_db.h
+	sql_schema_xml => (sql schema/parser generator) => _intemediate_ => (proto parser generator) => protocol parser for c++/c#
+	</pre>
+</p>
+
+<h2>example codes</h2>
+
+* beblow codes cut and paste from production codes so logic not fit with only theses files.
+
+<h3><b>INPUT SOURCE</b></h3>
+
+<div class="code_block"><button id="btn_db_xml">show/hide</button> sql_schema_xml</div>
+<pre class="code_block"><code id="db_xml" class="xml">
+&lt;xml&gt;	
+	&lt;!-- --------------------------------------------------------------------------- --&gt;
+	&lt;!-- config --&gt;
+	&lt;!-- --------------------------------------------------------------------------- --&gt;
+	&lt;config&gt;
+		&lt;db name=&quot;bb_system&quot; version=&quot;32&quot;/&gt; &lt;!-- increment version if backward compatibility broken --&gt;
+		&lt;timezone db=&quot;9&quot; local=&quot;0&quot;/&gt;
+		&lt;output type=&quot;cpp&quot; code=&quot;SystemDB.generated.h&quot;/&gt;
+		&lt;output type=&quot;packetXML&quot; code=&quot;SystemDB.generated.xml&quot; param1=&quot;MS&quot; param2=&quot;DB&quot;/&gt;
+		&lt;output type=&quot;MySQL&quot; code=&quot;SystemDB_MySQL.generated.sql&quot; param1=&quot;SystemDB_SP_MySQL.generated.sql&quot;/&gt;
+		&lt;drop table=&quot;true&quot; sp=&quot;true&quot;/&gt;
+		&lt;!-- disable testdata --&gt;
+		&lt;rawcode_disable tag=&quot;testdata&quot;/&gt;
+		&lt;select default_max_size=&quot;128&quot;/&gt; 
+	&lt;/config&gt;
+
+
+	&lt;!-- --------------------------------------------------------------------------- --&gt;
+	&lt;!-- ERROR CODE --&gt;
+	&lt;!-- --------------------------------------------------------------------------- --&gt;
+    &lt;error&gt;
+        &lt;code value=&quot;0&quot; name=&quot;SUCCESS&quot; comment=&quot;success&quot;/&gt;
+        &lt;code value=&quot;1&quot; name=&quot;ERR_GENERAL&quot; comment=&quot;error&quot;/&gt;
+        &lt;code value=&quot;2&quot; name=&quot;ERR_NOT_IMPLEMENTED&quot; comment=&quot;not implemented&quot;/&gt;
+        &lt;code value=&quot;3&quot; name=&quot;ERR_SESSION_SERVER&quot; comment=&quot;session error&quot;/&gt;
+        &lt;code value=&quot;4&quot; name=&quot;ERR_HAS_PENDING_REQUEST&quot; comment=&quot;client should wait until last response receive&quot;/&gt;
+
+        &lt;code value=&quot;100&quot; name=&quot;ERR_ALREADY_LOGGED_IN&quot; comment=&quot;already logged in&quot;/&gt;
+        &lt;code value=&quot;101&quot; name=&quot;ERR_WRONG_VERSION&quot; comment=&quot;wrong version&quot;/&gt;
+        &lt;code value=&quot;102&quot; name=&quot;ERR_FORCE_DISCONNECT_INACTIVE_ACCOUNT&quot; comment=&quot;disconnect inactive account, try to logged in again&quot;/&gt;
+        &lt;code value=&quot;103&quot; name=&quot;ERR_SESSION_NOT_FOUND&quot; comment=&quot;ERR_SESSION_NOT_FOUND&quot;/&gt;
+
+        &lt;code value=&quot;200&quot; name=&quot;ERR_WRONG_PARAMETER_ACCT_NAME&quot; comment=&quot;wrong parameter&quot;/&gt;        
+        &lt;code value=&quot;201&quot; name=&quot;ERR_WRONG_PARAMETER_1&quot; comment=&quot;wrong parameter: 1st&quot;/&gt;
+        &lt;code value=&quot;202&quot; name=&quot;ERR_WRONG_PARAMETER_2&quot; comment=&quot;wrong parameter: 2nd&quot;/&gt;
+        &lt;code value=&quot;203&quot; name=&quot;ERR_WRONG_PARAMETER_3&quot; comment=&quot;wrong parameter: 3rd&quot;/&gt;
+        ...
+    &lt;/error&gt;
+
+
+	&lt;!-------------------------------------------------------------------------------&gt;
+	&lt;!-- static system schema
+	&lt;!-------------------------------------------------------------------------------&gt;
+ 	&lt;!-- static_acct_info --&gt;
+	&lt;table name=&quot;static_acct_info&quot; select_max_size=&quot;128&quot; primary_key=&quot;acct_level&quot;&gt;
+		&lt;uint32 name=&quot;acct_level&quot; key=&quot;true&quot; table_index=&quot;true&quot;/&gt;
+		&lt;uint32 name=&quot;max_ap&quot;/&gt;
+		&lt;uint32 name=&quot;exp_to_lvup&quot;/&gt;
+		&lt;uint32 name=&quot;total_exp_to_lvup&quot;/&gt;
+		&lt;postfix_rawcode type=&quot;MySQL&quot; tag=&quot;data&quot; import_csv=&quot;../DB_data/static_acct_info.csv&quot;/&gt;
+	&lt;/table&gt;
+
+	&lt;!-- static_char_info --&gt;
+	&lt;table name=&quot;static_char_info&quot; select_max_size=&quot;128&quot; primary_key=&quot;char_index,char_level&quot;&gt;
+		&lt;uint32 name=&quot;char_index&quot; key=&quot;true&quot;/&gt;
+		&lt;uint32 name=&quot;char_level&quot; key=&quot;true&quot;/&gt;
+		&lt;uint32 name=&quot;exp_to_lvup&quot;/&gt;
+		&lt;uint32 name=&quot;total_exp_to_lvup&quot;/&gt;
+		&lt;uint32 name=&quot;char_att&quot;/&gt;
+		&lt;uint32 name=&quot;char_def&quot;/&gt;
+		&lt;uint32 name=&quot;char_health&quot;/&gt;
+		&lt;uint32 name=&quot;char_ai&quot;/&gt;
+		&lt;uint32 name=&quot;char_attr_train_time&quot; array_size=&quot;4&quot; array_name_format=&quot;%s_%01d&quot; comment=&quot;att,def,health,ai&quot;/&gt;
+		&lt;uint32 name=&quot;max_attr_point&quot; comment=&quot;max attr points&quot;/&gt;
+		&lt;uint32 name=&quot;attr_train_gold_cost&quot;/&gt;
+		&lt;uint32 name=&quot;max_spec_point&quot;/&gt;
+		&lt;postfix_rawcode type=&quot;MySQL&quot; tag=&quot;data&quot; import_csv=&quot;../DB_data/static_char_info.csv&quot;/&gt;
+	&lt;/table&gt;
+	&lt;generate_import_sp from=&quot;static_char_info&quot; index=&quot;char_index,char_level&quot; select_max_size=&quot;32&quot;/&gt;
+
+   	&lt;!-- static_monster --&gt;
+	&lt;table name=&quot;static_monster&quot; select_max_size=&quot;128&quot; primary_key=&quot;monster_index&quot;&gt;
+		&lt;uint32 name=&quot;monster_index&quot; key=&quot;true&quot;/&gt;
+		&lt;astring max_size=&quot;50&quot; name=&quot;monster_code&quot; key=&quot;true&quot; table_index=&quot;true&quot;/&gt;
+		&lt;astring max_size=&quot;50&quot; name=&quot;monster_name&quot;/&gt;
+		&lt;astring max_size=&quot;50&quot; name=&quot;reward_code&quot;/&gt;
+		&lt;uint32 name=&quot;monster_grade&quot; comment=&quot;몬스터 등급&quot; default=&quot;0&quot;/&gt;
+		&lt;uint32 name=&quot;monster_gold_min&quot;/&gt;
+		&lt;uint32 name=&quot;monster_gold_max&quot;/&gt;
+		&lt;uint32 name=&quot;monster_exp&quot;/&gt;
+		&lt;uint32 name=&quot;Monster_Lv&quot;/&gt;
+		&lt;astring max_size=&quot;50&quot; name=&quot;Attack_Type&quot;/&gt;
+		&lt;uint32 name=&quot;Item_MinDam&quot;/&gt;
+		&lt;uint32 name=&quot;Item_MaxDam&quot;/&gt;
+		&lt;uint32 name=&quot;Item_Att&quot;/&gt;
+		&lt;uint32 name=&quot;Item_Def&quot;/&gt;
+		&lt;uint32 name=&quot;Item_Health&quot;/&gt;
+		&lt;float name=&quot;Dam_Slash&quot;/&gt;
+		&lt;float name=&quot;Dam_Crash&quot;/&gt;
+		&lt;float name=&quot;Dam_Pierce&quot;/&gt;
+		&lt;uint32 name=&quot;Item_Pen&quot;/&gt;
+		&lt;float name=&quot;Item_PenPer&quot;/&gt;
+		&lt;float name=&quot;Item_CriPer&quot;/&gt;
+		&lt;float name=&quot;Item_CriRat&quot;/&gt;
+		&lt;uint32 name=&quot;Item_TrueDam&quot;/&gt;
+		&lt;astring max_size=&quot;50&quot; name=&quot;TagRule&quot;/&gt;
+		&lt;postfix_rawcode type=&quot;MySQL&quot; tag=&quot;data&quot; import_csv=&quot;../DB_data/static_monster.csv&quot;/&gt;
+	&lt;/table&gt;
+	&lt;generate_import_sp from=&quot;static_monster&quot; index=&quot;monster_index&quot; select_max_size=&quot;32&quot;/&gt;
+
+ 	&lt;!-- static_mission --&gt;
+	&lt;table name=&quot;static_mission&quot; select_max_size=&quot;128&quot; primary_key=&quot;mission_index&quot;&gt;
+		&lt;uint32 name=&quot;mission_index&quot; key=&quot;true&quot; table_index=&quot;true&quot; /&gt;
+		&lt;astring max_size=&quot;50&quot; name=&quot;mission_code&quot; key=&quot;true&quot;/&gt;
+		&lt;astring max_size=&quot;50&quot; name=&quot;mission_name&quot;/&gt;
+		&lt;uint32 name=&quot;ap_cost&quot; comment=&quot;ap 소모&quot;/&gt;
+		&lt;uint32 name=&quot;mission_group&quot; comment=&quot;미션 그룹&quot; key=&quot;true&quot;/&gt;
+		&lt;astring max_size=&quot;50&quot; name=&quot;boss_monster_code&quot;/&gt;
+		&lt;uint32 name=&quot;opt_monster_count&quot; comment=&quot;잡몹 숫자&quot;/&gt;
+		&lt;astring max_size=&quot;50&quot; name=&quot;opt_monster_code&quot; default=&quot;0&quot; array_size=&quot;10&quot; array_name_format=&quot;%s_%01d&quot; comment=&quot;잡몹 코드&quot;/&gt;
+		&lt;astring max_size=&quot;50&quot; name=&quot;reward_code_if_cleard_1st&quot; commnet=&quot;첫 클리어시 보상&quot;/&gt;
+
+		&lt;uint32 name=&quot;drop_item_index&quot; array_size=&quot;5&quot; array_name_format=&quot;%s_%01d&quot; default=&quot;0&quot; comment=&quot;추가 데이터: 드랍 아이템 Index 리스트&quot;/&gt;
+
+		&lt;postfix_rawcode type=&quot;MySQL&quot; tag=&quot;data&quot; import_csv=&quot;../DB_data/static_mission.csv&quot;/&gt;
+	&lt;/table&gt;
+	&lt;generate_import_sp from=&quot;static_mission&quot; index=&quot;mission_index&quot; select_max_size=&quot;32&quot;/&gt;
+
+ 	&lt;!-- static_item --&gt;
+	&lt;table name=&quot;static_item&quot; select_max_size=&quot;128&quot; primary_key=&quot;item_index&quot;&gt;
+ 		&lt;uint32 name=&quot;item_index&quot; key=&quot;true&quot; table_index=&quot;true&quot;/&gt;
+		&lt;astring max_size=&quot;50&quot; name=&quot;code&quot; key=&quot;true&quot; comment=&quot;아이템 코드&quot;/&gt;
+		&lt;astring max_size=&quot;50&quot; name=&quot;name&quot; comment=&quot;아이템 이름&quot;/&gt;
+		&lt;uint32 name=&quot;item_tier&quot; default=&quot;0&quot; comment=&quot;아이템 아레나 티어&quot;/&gt;
+		&lt;uint32 name=&quot;grade&quot; default=&quot;0&quot; comment=&quot;아이템 등급. 1:Normal 2:Uncommon ... 5: legend&quot;/&gt;
+		&lt;uint32 name=&quot;max_stack&quot; default=&quot;1&quot; comment=&quot;아이템 최대 스택 수&quot;/&gt;
+		&lt;uint32 name=&quot;max_level&quot; default=&quot;10&quot; comment=&quot;최대 레벨&quot;/&gt;
+		&lt;astring max_size=&quot;50&quot; name=&quot;item_desc&quot; default=&quot;N/A&quot; comment=&quot;아이템 설명&quot;/&gt;
+		&lt;uint32 name=&quot;slot&quot; default=&quot;255&quot; comment=&quot;아이템 장착 부위 0:skin ... 1:weapon, 88: skill_dummy 99: skill, 255:other&quot;/&gt;
+		&lt;uint32 name=&quot;evolvable_item_index&quot; default=&quot;0&quot; comment=&quot; 진화 가능하면 진화 가능한 아이템 Index, 0이면 불가능&quot;/&gt;
+		&lt;uint32 name=&quot;equippable_char_index&quot; default=&quot;0&quot; comment=&quot; 장착 가능한 캐릭터 인덱스, 0이면 아무나 &quot;/&gt;
+		&lt;uint32 name=&quot;base_sell_price&quot; default=&quot;0&quot;/&gt;
+		&lt;astring max_size=&quot;50&quot; name=&quot;reward_code_on_use&quot; default=&quot;0&quot;/&gt;
+		&lt;uint32 name=&quot;expire_in_hours&quot; default=&quot;0&quot; comment=&quot;0; 무제한, 주의: stackable 아이템에 기한제한을 넣으면 좇된다&quot;/&gt;
+		&lt;postfix_rawcode type=&quot;MySQL&quot; tag=&quot;data&quot; import_csv=&quot;../DB_data/static_item.csv&quot;/&gt;
+	&lt;/table&gt;
+	&lt;generate_import_sp from=&quot;static_item&quot; index=&quot;item_index&quot; select_max_size=&quot;32&quot;/&gt;
+
+	&lt;!-- static_reward --&gt;
+	&lt;table name=&quot;static_reward&quot; select_max_size=&quot;128&quot; primary_key=&quot;reward_index&quot;&gt;
+		&lt;uint32 name=&quot;reward_index&quot; auto_increment=&quot;1&quot; key=&quot;true&quot; /&gt;
+		&lt;astring max_size=&quot;50&quot; name=&quot;reward_code&quot; key=&quot;true&quot; table_index=&quot;true&quot;/&gt;
+		&lt;astring max_size=&quot;50&quot; name=&quot;expr_gold&quot; default=&quot;0&quot;/&gt;
+		&lt;astring max_size=&quot;50&quot; name=&quot;expr_ruby&quot; default=&quot;0&quot;/&gt;
+		&lt;astring max_size=&quot;50&quot; name=&quot;expr_honor&quot; default=&quot;0&quot;/&gt;
+		&lt;astring max_size=&quot;50&quot; name=&quot;expr_exp&quot; default=&quot;0&quot;/&gt;
+		&lt;astring max_size=&quot;50&quot; name=&quot;expr_ap&quot; default=&quot;0&quot;/&gt;
+		&lt;astring max_size=&quot;50&quot; name=&quot;expr_item&quot; default=&quot;0&quot; array_size=&quot;20&quot; array_name_format=&quot;%s_%01d&quot;/&gt;
+		&lt;postfix_rawcode type=&quot;MySQL&quot; tag=&quot;data&quot; import_csv=&quot;../DB_data/static_reward.csv&quot;/&gt;
+	&lt;/table&gt;
+	&lt;generate_import_sp from=&quot;static_reward&quot; index=&quot;reward_index&quot; select_max_size=&quot;32&quot;/&gt;
+
+	&lt;!-- --------------------------------------------------------------------------- --&gt;
+	&lt;!-- __TTTTTTT__BBBBB___L_______________________________________________________ --&gt;
+	&lt;!-- _____T_____B____B__L_______________________________________________________ --&gt;
+	&lt;!-- _____T_____BBBBB___L_______________________________________________________ --&gt;
+	&lt;!-- _____T_____B____B__L_______________________________________________________ --&gt;
+	&lt;!-- _____T_____BBBBB___LLLLLL__________________________________________________ --&gt;
+	&lt;!-- --------------------------------------------------------------------------- --&gt;
+
+	&lt;table name=&quot;tbl_account&quot; primary_key=&quot;acct_id&quot;&gt;
+		&lt;uint64 name=&quot;acct_id&quot; auto_increment=&quot;10000&quot; comment=&quot;계정 Unique no&quot;/&gt;
+		&lt;uint64 name=&quot;acct_id_external&quot; key=&quot;true&quot;/&gt;
+		&lt;astring max_size=&quot;50&quot; name=&quot;acct_name&quot; key=&quot;true&quot; /&gt;
+		&lt;astring max_size=&quot;50&quot; name=&quot;nickname&quot; /&gt;
+		&lt;timestamp name=&quot;creation_time&quot; default_current_time=&quot;true&quot; /&gt;
+
+		&lt;postfix_rawcode type=&quot;MySQL&quot;&gt;
+		-- you can add any code here after &apos;create table&apos;
+		&lt;/postfix_rawcode&gt;
+
+		&lt;postfix_rawcode type=&quot;MySQL&quot; tag=&quot;testdata&quot;&gt;
+		-- ----------------------------
+		-- Records of tbl_account
+		-- ----------------------------
+		insert into `tbl_account` values (&apos;100&apos;, &apos;100&apos;, &apos;icedac&apos;, &apos;아이스닥&apos;, DEFAULT );
+		insert into `tbl_account` values (&apos;101&apos;, &apos;101&apos;, &apos;deepfry&apos;, &apos;딥후라이&apos;, DEFAULT );			
+		&lt;/postfix_rawcode&gt;
+	&lt;/table&gt;
+	&lt;copy name=&quot;client_account&quot; comment=&quot;client copy_from&quot;&gt;
+		&lt;uint64 name=&quot;acct_id&quot; auto_increment=&quot;10000&quot; comment=&quot;계정 Unique no&quot;/&gt;
+		&lt;uint64 name=&quot;acct_id_external&quot; key=&quot;true&quot;/&gt;
+		&lt;astring max_size=&quot;50&quot; name=&quot;acct_name&quot; key=&quot;true&quot; /&gt;
+		&lt;astring max_size=&quot;50&quot; name=&quot;nickname&quot; /&gt;
+		&lt;timestamp name=&quot;creation_time&quot; default_current_time=&quot;true&quot; /&gt;
+	&lt;/copy&gt;
+
+	&lt;table name=&quot;tbl_account_game&quot; primary_key=&quot;acct_id&quot;&gt; 
+		&lt;uint64 name=&quot;acct_id&quot; foreign_key=&quot;acct_id&quot; source_table=&quot;tbl_account&quot;/&gt;
+		&lt;uint32 name=&quot;acct_level&quot; default=&quot;1&quot; /&gt;
+		&lt;uint32 name=&quot;acct_exp&quot; default=&quot;0&quot; /&gt;
+		&lt;uint64 name=&quot;curr_char_id&quot; default=&quot;0&quot;/&gt;
+		&lt;uint32 name=&quot;gold&quot;/&gt;
+		&lt;uint32 name=&quot;ruby&quot;/&gt;
+		&lt;uint32 name=&quot;max_ap&quot; default=&quot;71&quot; comment=&quot;최대 행동력&quot; /&gt;
+		&lt;timestamp name=&quot;time_to_max_ap&quot; comment=&quot;ap가 최대치가 될 시간&quot; default_current_time=&quot;true&quot; /&gt;
+		&lt;uint32 name=&quot;ap_cool_time&quot; comment=&apos;ap 쿨타임(1차는데 걸리는 초)&apos; default=&quot;360&quot; /&gt;
+		&lt;timestamp name=&quot;last_logged_in&quot; null=&quot;true&quot;/&gt;
+		&lt;uint32 name=&quot;max_inventory_count&quot; default=&quot;500&quot; /&gt;
+		&lt;uint32 name=&quot;last_processed_system_mail_id&quot; default=&quot;0&quot;/&gt;
+		&lt;timestamp name=&quot;time_to_free_product&quot; null=&quot;true&quot; array_size=&quot;10&quot; array_name_format=&quot;%s_%01d&quot; default=&quot;0&quot;/&gt;
+		&lt;uint32 name=&quot;max_box_inventory_count&quot; default=&quot;4&quot; comment=&quot;&quot;/&gt;
+	&lt;/table&gt;
+ 
+        ...
+
+	&lt;!-- --------------------------------------------------------------------------- --&gt;
+	&lt;!-- __SSSS___PPPP______________________________________________________________ --&gt;
+	&lt;!-- _S_______P___P_____________________________________________________________ --&gt;
+	&lt;!-- __SSSS___PPPP______________________________________________________________ --&gt;
+	&lt;!-- ______S__P_________________________________________________________________ --&gt;
+	&lt;!-- __SSSS___P_________________________________________________________________ --&gt;
+	&lt;!-- --------------------------------------------------------------------------- --&gt;
+
+	&lt;!-- SP: sp_get_account_box --&gt;
+	&lt;sp name=&quot;sp_get_account_box&quot;&gt;
+		&lt;in&gt;
+			&lt;uint64 name=&quot;acct_id&quot; /&gt; 
+		&lt;/in&gt;
+		&lt;out&gt;
+			&lt;uint32 name=&quot;result&quot;/&gt;
+		&lt;/out&gt;
+		&lt;result_set max_size=&quot;1&quot;&gt;
+			&lt;!-- tbl_account --&gt;
+			&lt;uint64 name=&quot;acct_id&quot; foreign_key=&quot;acct_id&quot; source_table=&quot;tbl_account&quot; comment=&quot;계정 Unique no&quot;/&gt;
+			&lt;uint32 name=&quot;box_type&quot; array_size=&quot;10&quot; array_name_format=&quot;%s_%01d&quot; default=&quot;0&quot; comment=&quot;0; no box. 1:silver 2:gold 3: magic 4:giant 5:legend&quot;/&gt;
+			&lt;uint32 name=&quot;box_arena_tier&quot; array_size=&quot;10&quot; array_name_format=&quot;%s_%01d&quot; default=&quot;0; no box, 1-9&quot;/&gt;			
+			&lt;timestamp name=&quot;time_to_unlock&quot; array_size=&quot;10&quot; array_name_format=&quot;%s_%01d&quot; comment=&quot;box가 언락되는 시간; 0; locked&quot; default=&quot;0000-00-00 00:00:00&quot;/&gt;
+		&lt;/result_set&gt;
+		&lt;sql type=&quot;MySQL&quot;&gt;
+	CALL fn_check_account( acct_id, result ); IF ( result != 0 ) THEN SELECT 0 LIMIT 0; LEAVE fin; END IF;
+	-- CALL fn_check_character( char_id, result ); IF ( result != 0 ) THEN SELECT 0 LIMIT 0; LEAVE fin; END IF;
+
+	SELECT AB.*
+		FROM tbl_account_box AS AB
+		WHERE AB.acct_id = acct_id;
+
+	SET result = 0;
+		&lt;/sql&gt;
+	&lt;/sp&gt;
+
+	&lt;!-- SP: sp_account_login     --&gt;
+	&lt;sp name=&quot;sp_account_login&quot; comment=&quot;last_logged_in을 업데이트&quot;&gt;
+		&lt;in&gt;
+			&lt;astring max_size=&quot;50&quot; name=&quot;acct_name&quot; /&gt;
+			&lt;astring max_size=&quot;50&quot; name=&quot;ip_address&quot; default=&quot;0.0.0.0&quot;/&gt;
+			&lt;uint32 name=&quot;port&quot; default=&quot;0&quot;/&gt;
+		&lt;/in&gt;
+		&lt;out&gt;
+			&lt;uint32 name=&quot;result&quot;/&gt;
+		&lt;/out&gt;
+		&lt;sql type=&quot;MySQL&quot;&gt;
+	CALL fn_check_account( acct_id, result ); IF ( result != 0 ) THEN LEAVE fin; END IF;
+	-- CALL fn_check_character( char_id, result ); IF ( result != 0 ) THEN LEAVE fin; END IF;
+	
+	UPDATE tbl_account_game
+		SET last_logged_in = NOW()
+		WHERE tbl_account_game.acct_id = @acct_id;
+
+	INSERT INTO `tbl_log_account_login`(
+		`acct_id`, `acct_name`, `ip_address`, `port` )
+		VALUES (
+			@acct_id, acct_name, ip_address, port
+		);
+
+	SET result = 0;
+		&lt;/sql&gt;
+	&lt;/sp&gt;
+    
+
+&lt;/xml&gt;
+</code></pre>
+
+<h3><b>OUTPUT GENERATED CODES</b></h3>
+
+<div class="code_block"><button id="btn_db_sql">show/hide</button> GEN_sql_schema.sql</div>
+<pre class="code_block"><code id="db_sql" class="sql">
+-- generated by SQL COMPILER
+-- time : 2018-07-11 13:08:59.179
+-- do not modify
+-- contact: icedac@gmail.com
+
+USE bb_game;
+
+SET FOREIGN_KEY_CHECKS = 0;
+
+-- ****************************************************************************
+-- *
+-- * BEGIN RAWCODE
+-- */
+
+DROP EVENT IF EXISTS `ev_on_daily_rank`;
+CREATE EVENT `ev_on_daily_rank`
+	ON SCHEDULE
+		EVERY 10 MINUTE STARTS '2000-01-01 05:00:00'
+	ON COMPLETION PRESERVE
+	ENABLE
+	COMMENT ''
+	DO call sp_balance_arena_rank(@r);	
+	
+
+-- ****************************************************************************
+-- *
+-- *	table: tbl_account
+-- */
+DROP TABLE IF EXISTS `tbl_account`;
+CREATE TABLE `tbl_account`(
+	`acct_id` bigint UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '계정 Unique no'
+,	`acct_id_external` bigint UNSIGNED NOT NULL
+,	KEY (`acct_id_external`)
+,	`acct_name` varchar(50) NOT NULL
+,	KEY (`acct_name`)
+,	`nickname` varchar(50) NOT NULL
+,	`creation_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+,	PRIMARY KEY (`acct_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT = 10000;
+
+		-- you can add any code here after 'create table'
+		
+
+-- ****************************************************************************
+-- *
+-- *	table: tbl_account_game
+-- */
+DROP TABLE IF EXISTS `tbl_account_game`;
+CREATE TABLE `tbl_account_game`(
+	`acct_id` bigint UNSIGNED NOT NULL
+,	KEY `FK__tbl_account_game_acct_id` (`acct_id`)
+,	CONSTRAINT `FK__tbl_account_game_acct_id` FOREIGN KEY (`acct_id`) REFERENCES `tbl_account` (`acct_id`)
+,	`acct_level` int UNSIGNED NOT NULL DEFAULT '1'
+,	`acct_exp` int UNSIGNED NOT NULL DEFAULT '0'
+,	`curr_char_id` bigint UNSIGNED NOT NULL DEFAULT '0'
+,	`gold` int UNSIGNED NOT NULL
+,	`ruby` int UNSIGNED NOT NULL
+,	`max_ap` int UNSIGNED NOT NULL DEFAULT '71' COMMENT '최대 행동력'
+,	`time_to_max_ap` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'ap가 최대치가 될 시간'
+,	`ap_cool_time` int UNSIGNED NOT NULL DEFAULT '360' COMMENT 'ap 쿨타임(1차는데 걸리는 초)'
+,	`last_logged_in` timestamp
+,	`max_inventory_count` int UNSIGNED NOT NULL DEFAULT '500'
+,	`last_processed_system_mail_id` int UNSIGNED NOT NULL DEFAULT '0'
+,	`time_to_free_product_0` timestamp DEFAULT '0'
+,	`time_to_free_product_1` timestamp DEFAULT '0'
+,	`time_to_free_product_2` timestamp DEFAULT '0'
+,	`time_to_free_product_3` timestamp DEFAULT '0'
+,	`time_to_free_product_4` timestamp DEFAULT '0'
+,	`time_to_free_product_5` timestamp DEFAULT '0'
+,	`time_to_free_product_6` timestamp DEFAULT '0'
+,	`time_to_free_product_7` timestamp DEFAULT '0'
+,	`time_to_free_product_8` timestamp DEFAULT '0'
+,	`time_to_free_product_9` timestamp DEFAULT '0'
+,	`max_box_inventory_count` int UNSIGNED NOT NULL DEFAULT '4'
+,	PRIMARY KEY (`acct_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+
+-- ****************************************************************************
+-- *
+-- *	table: tbl_character
+-- */
+DROP TABLE IF EXISTS `tbl_character`;
+CREATE TABLE `tbl_character`(
+	`acct_id` bigint UNSIGNED NOT NULL
+,	KEY `FK__tbl_character_acct_id` (`acct_id`)
+,	CONSTRAINT `FK__tbl_character_acct_id` FOREIGN KEY (`acct_id`) REFERENCES `tbl_account` (`acct_id`)
+,	`char_id` bigint UNSIGNED NOT NULL AUTO_INCREMENT
+,	KEY (`char_id`)
+,	`char_index` int UNSIGNED NOT NULL DEFAULT '0'
+,	`char_level` int UNSIGNED NOT NULL DEFAULT '1'
+,	`char_exp` int UNSIGNED NOT NULL DEFAULT '0'
+,	`char_attr_pt_0` int UNSIGNED NOT NULL DEFAULT '1' COMMENT '0:att,def,health,ai'
+,	`char_attr_pt_1` int UNSIGNED NOT NULL DEFAULT '1' COMMENT '0:att,def,health,ai'
+,	`char_attr_pt_2` int UNSIGNED NOT NULL DEFAULT '1' COMMENT '0:att,def,health,ai'
+,	`char_attr_pt_3` int UNSIGNED NOT NULL DEFAULT '1' COMMENT '0:att,def,health,ai'
+,	`char_spec` varchar(20) NOT NULL COMMENT 'sepc string: 010021304201102'
+,	`slot_item_id_0` bigint UNSIGNED NOT NULL DEFAULT '0' COMMENT '0: char_skin 1:weapon'
+,	`slot_item_id_1` bigint UNSIGNED NOT NULL DEFAULT '0' COMMENT '0: char_skin 1:weapon'
+,	`slot_item_id_2` bigint UNSIGNED NOT NULL DEFAULT '0' COMMENT '0: char_skin 1:weapon'
+,	`slot_item_id_3` bigint UNSIGNED NOT NULL DEFAULT '0' COMMENT '0: char_skin 1:weapon'
+,	`slot_item_id_4` bigint UNSIGNED NOT NULL DEFAULT '0' COMMENT '0: char_skin 1:weapon'
+,	`slot_item_id_5` bigint UNSIGNED NOT NULL DEFAULT '0' COMMENT '0: char_skin 1:weapon'
+,	`slot_item_id_6` bigint UNSIGNED NOT NULL DEFAULT '0' COMMENT '0: char_skin 1:weapon'
+,	`slot_item_id_7` bigint UNSIGNED NOT NULL DEFAULT '0' COMMENT '0: char_skin 1:weapon'
+,	`slot_item_id_8` bigint UNSIGNED NOT NULL DEFAULT '0' COMMENT '0: char_skin 1:weapon'
+,	`slot_item_id_9` bigint UNSIGNED NOT NULL DEFAULT '0' COMMENT '0: char_skin 1:weapon'
+,	`slot_item_skill_id_0` bigint UNSIGNED NOT NULL DEFAULT '0'
+,	`slot_item_skill_id_1` bigint UNSIGNED NOT NULL DEFAULT '0'
+,	`slot_item_skill_id_2` bigint UNSIGNED NOT NULL DEFAULT '0'
+,	`slot_item_skill_id_3` bigint UNSIGNED NOT NULL DEFAULT '0'
+,	`slot_item_skill_id_4` bigint UNSIGNED NOT NULL DEFAULT '0'
+,	`slot_item_skill_id_5` bigint UNSIGNED NOT NULL DEFAULT '0'
+,	`slot_item_skill_id_6` bigint UNSIGNED NOT NULL DEFAULT '0'
+,	`slot_item_skill_id_7` bigint UNSIGNED NOT NULL DEFAULT '0'
+,	`slot_item_skill_id_8` bigint UNSIGNED NOT NULL DEFAULT '0'
+,	`slot_item_skill_id_9` bigint UNSIGNED NOT NULL DEFAULT '0'
+,	PRIMARY KEY (`char_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT = 20000;
+
+-- ****************************************************************************
+-- *
+-- *	stored procedure: sp_account_login
+-- */
+DROP PROCEDURE IF EXISTS `sp_account_login`;
+DELIMITER //
+CREATE PROCEDURE `sp_account_login`(
+	IN `acct_name` varchar(50)
+,	IN `ip_address` varchar(50)
+,	IN `port` int UNSIGNED
+,	OUT `result` int UNSIGNED
+)
+fin:BEGIN
+	
+	CALL fn_check_account( acct_id, result ); IF ( result != 0 ) THEN LEAVE fin; END IF;
+	-- CALL fn_check_character( char_id, result ); IF ( result != 0 ) THEN LEAVE fin; END IF;
+	
+	UPDATE tbl_account_game
+		SET last_logged_in = NOW()
+		WHERE tbl_account_game.acct_id = @acct_id;
+
+	INSERT INTO `tbl_log_account_login`(
+		`acct_id`, `acct_name`, `ip_address`, `port` )
+		VALUES (
+			@acct_id, acct_name, ip_address, port
+		);
+
+	SET result = 0;
+		
+END//
+DELIMITER ;
+
+
+-- ****************************************************************************
+-- *
+-- *	stored procedure: sp_new_item_list
+-- */
+DROP PROCEDURE IF EXISTS `sp_new_item_list`;
+DELIMITER //
+CREATE PROCEDURE `sp_new_item_list`(
+	IN `acct_id` bigint UNSIGNED
+,	IN `new_item_index_0` int UNSIGNED
+,	IN `new_item_index_1` int UNSIGNED
+,	IN `new_item_index_2` int UNSIGNED
+,	IN `new_item_index_3` int UNSIGNED
+,	IN `new_item_index_4` int UNSIGNED
+,	IN `amount_0` int UNSIGNED
+,	IN `amount_1` int UNSIGNED
+,	IN `amount_2` int UNSIGNED
+,	IN `amount_3` int UNSIGNED
+,	IN `amount_4` int UNSIGNED
+,	OUT `result` int UNSIGNED
+,	OUT `added_count` int UNSIGNED
+,	OUT `added_item_id_0` bigint UNSIGNED
+,	OUT `added_item_id_1` bigint UNSIGNED
+,	OUT `added_item_id_2` bigint UNSIGNED
+,	OUT `added_item_id_3` bigint UNSIGNED
+,	OUT `added_item_id_4` bigint UNSIGNED
+)
+fin:BEGIN
+	
+	CALL fn_check_account( acct_id, result ); IF ( result != 0 ) THEN LEAVE fin; END IF;
+	-- CALL fn_check_character( char_id, result ); IF ( result != 0 ) THEN LEAVE fin; END IF;
+
+	set added_count = 0;
+
+	start transaction;
+
+	if ( new_item_index_0 != 0 ) then
+		call fn_new_item( acct_id, new_item_index_0, amount_0, result, added_item_id_0 );
+		if ( result != 0 ) then rollback; leave fin; end if;
+		set added_count = added_count + 1;
+	end if;
+	if ( new_item_index_1 != 0 ) then
+		call fn_new_item( acct_id, new_item_index_1, amount_1, result, added_item_id_1 );
+		if ( result != 0 ) then rollback; leave fin; end if;
+		set added_count = added_count + 1;
+	end if;
+	if ( new_item_index_2 != 0 ) then
+		call fn_new_item( acct_id, new_item_index_2, amount_2, result, added_item_id_2 );
+		if ( result != 0 ) then rollback; leave fin; end if;
+		set added_count = added_count + 1;
+	end if;
+	if ( new_item_index_3 != 0 ) then
+		call fn_new_item( acct_id, new_item_index_3, amount_3, result, added_item_id_3 );
+		if ( result != 0 ) then rollback; leave fin; end if;
+		set added_count = added_count + 1;
+	end if;
+	if ( new_item_index_4 != 0 ) then
+		call fn_new_item( acct_id, new_item_index_4, amount_4, result, added_item_id_4 );
+		if ( result != 0 ) then rollback; leave fin; end if;
+		set added_count = added_count + 1;
+	end if;
+
+	commit;
+
+	SET result = 0;
+		
+END//
+DELIMITER ;
+
+
+-- version check sp
+DROP PROCEDURE IF EXISTS `sp_version_check`;
+DELIMITER //
+CREATE PROCEDURE `sp_version_check`( OUT version BIGINT, OUT minor_version BIGINT )
+BEGIN
+	set version = 32; -- 0x0000000000000020
+	set minor_version = 131757557391620000; -- 0x01d418cce4ccf7a0
+END//
+DELIMITER ;
+</code></pre>
+
+
+<div class="code_block"><button id="btn_db_cpp">show/hide</button> GEN_db.h</div>
+<pre class="code_block"><code id="db_cpp" class="cpp">
+// generated by SQL COMPILER
+// time : 2018-07-11 13:08:59.164
+// do not modify
+// contact: icedac@gmail.com
+#pragma once
+#pragma warning(push)
+#pragma warning(disable: 4100) // unreferenced formal parameter
+
+namespace bb_game {
+
+	using corn::FormatString;
+
+	inline const char* name_A() { return "bb_game"; }
+	inline const wchar_t* name_W() { return L"bb_game"; };
+	inline const TCHAR* name() { return _T("bb_game"); }
+	const int64_t version = 0x0000000000000020; // 32
+	const int64_t minor_version = 0x01d418cce4ccf7a0; // 131757557391620000
+
+	/****************************************************************************
+	*
+	*	stored procedure: sp_version_check
+	*/
+	struct sp_version_check
+	{
+		static const char* name_A() { return "sp_version_check"; }
+		static const wchar_t* name_W() { return L"sp_version_check"; };
+		static const TCHAR* name() { return _T("sp_version_check"); }
+
+		struct sp_t {
+
+			struct out_t {
+				std::int64_t version; // bigint
+				std::int64_t minor_version; // bigint
+
+				BEGIN_OTLA_BINDING
+					OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_FROM_DB, version, "version")
+					OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_FROM_DB, minor_version, "minor_version")
+				END_OTLA_BINDING
+			} out;
+
+
+			BEGIN_OTLA_BINDING
+				OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_OUT_SET_ARG, out.version, "version")
+				OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_OUT_SET_ARG, out.minor_version, "minor_version")
+			END_OTLA_BINDING
+		}; // struct sp {
+
+		//
+		oTLA::StoredProcedure<sp_t> sp;
+		oTLA::Search<sp_t::out_t> out;
+	
+		template < typename UPDATER >
+		void open( UPDATER* u, const TCHAR* db_name = nullptr )
+		{
+			auto sp_name = FormatString(_T("%s.%s"), db_name ? db_name : bb_game::name(), name() ).AsString();
+			sp.Open(u, sp_name.c_str());
+			out.Open(u,nullptr);
+		}
+	};
+
+	template <typename E>
+	inline auto Enum_AsInt(E const value)
+		-> typename std::underlying_type<E>::type {
+		return static_cast<typename std::underlying_type<E>::type>(value);
+	}
+	
+	enum class Error : std::int32_t {
+		SUCCESS = 0,
+		ERR_GENERAL = 1,
+		ERR_NOT_IMPLEMENTED = 2,
+		ERR_SESSION_SERVER = 3,
+		ERR_HAS_PENDING_REQUEST = 4,
+		ERR_ALREADY_LOGGED_IN = 100,
+		ERR_WRONG_VERSION = 101,
+		ERR_FORCE_DISCONNECT_INACTIVE_ACCOUNT = 102,
+		ERR_SESSION_NOT_FOUND = 103,
+		ERR_WRONG_PARAMETER_ACCT_NAME = 200,
+		ERR_WRONG_PARAMETER_1 = 201,
+		ERR_WRONG_PARAMETER_2 = 202,
+		ERR_WRONG_PARAMETER_3 = 203,
+		ERR_WRONG_PARAMETER_4 = 204,
+		ERR_WRONG_PARAMETER_5 = 205,
+		ERR_WRONG_PARAMETER_COST = 206,
+		ERR_WRONG_PARAMETER = 299,
+		ERR_RESOURCE_NOT_FOUND = 300,
+		ERR_RESOURCE_NOT_FOUND_SOURCE = 301,
+		ERR_RESOURCE_NOT_FOUND_TARGET = 302,
+		ERR_ACCESS_DENIED = 400,
+		ERR_ACCESS_DENIED_PROTECTED = 401,
+		ERR_ACCESS_DENIED_SOURCE = 402,
+		ERR_ACCESS_DENIED_TARGET = 403,
+		ERR_DB_SERVER = 500,
+		ERR_DB_SERVER_SQLEXCEPTION = 501,
+		ERR_DB_SERVER_SQLWARNING = 502,
+		ERR_INSURFFICIENT_RESOURCE = 1100,
+		ERR_INSURFFICIENT_GAME_MONEY = 1101,
+		ERR_INSURFFICIENT_GAME_CASH = 1102,
+		ERR_INSURFFICIENT_HONOR_POINT = 1103,
+		ERR_INSURFFICIENT_AP = 1104,
+		ERR_INSURFFICIENT_ITEM_MATERIAL = 1105,
+		ERR_INSURFFICIENT_INVENTORY = 1106,
+		ERR_OPERATION_NOT_READY = 1200,
+		ERR_ACCOUNT_EVENT_RAISED = 1300,
+		ERR_ACCOUNT_EVENT_NOT_FOUND = 1301,
+	};
+
+
+
+	/****************************************************************************
+	*
+	*	table: tbl_account
+	*/
+	
+	struct tbl_account
+	{
+		static const char* name_A() { return "tbl_account"; }
+		static const wchar_t* name_W() { return L"tbl_account"; };
+		static const TCHAR* name() { return _T("tbl_account"); };
+
+		static std::basic_string<TCHAR> table_name( const TCHAR* db_name = nullptr )
+		{
+			return FormatString(_T("%s.%s"), db_name ? db_name : _T("bb_game"), name()).AsString();
+		}
+
+		struct table_t {
+			std::uint64_t acct_id; // bigint; 계정 Unique no
+			std::uint64_t acct_id_external; // bigint; 
+			corn::TFixedStringA<50> acct_name; // varchar; 
+			corn::TFixedStringA<50> nickname; // varchar; 
+			oTLA::DB_Time_t creation_time; // timestamp; 
+
+			BEGIN_OTLA_BINDING
+				OTLA_BIND_ATT_COLUMN_NAME(oTLA::TO_DB | oTLA::FROM_DB, acct_id, "acct_id")
+				OTLA_BIND_ATT_COLUMN_NAME(oTLA::TO_DB | oTLA::FROM_DB, acct_id_external, "acct_id_external")
+				OTLA_BIND_ATT_COLUMN_NAME(oTLA::TO_DB | oTLA::FROM_DB, acct_name, "acct_name")
+				OTLA_BIND_ATT_COLUMN_NAME(oTLA::TO_DB | oTLA::FROM_DB, nickname, "nickname")
+				OTLA_BIND_ATT_COLUMN_NAME(oTLA::TO_DB | oTLA::FROM_DB, creation_time, "creation_time")
+			END_OTLA_BINDING
+
+			template < typename U, typename V > // packet to packet
+			static void copy(const U& from, V& to) {
+				to.acct_id = from.acct_id; // CT_PRIMITIVE
+				to.acct_id_external = from.acct_id_external; // CT_PRIMITIVE
+				to.acct_name = from.acct_name; // CT_STRING
+				to.nickname = from.nickname; // CT_STRING
+				to.creation_time = from.creation_time; // CT_TIMESTAMP
+			}
+			template < typename DB, typename T > // db to packet
+			static void copy_from( const DB& from, T& to ) {
+				to.acct_id = from.acct_id; // CT_PRIMITIVE
+				to.acct_id_external = from.acct_id_external; // CT_PRIMITIVE
+				to.acct_name = from.acct_name.c_str(); // CT_STRING
+				to.nickname = from.nickname.c_str(); // CT_STRING
+				oTLA::time_db_to_timestamp(to.creation_time, from.creation_time, (float)0, (float)9); // CT_TIMESTAMP
+			}
+			template < typename DB, typename T > // packet to db
+			static void copy_to( const T& from, DB& to ) {
+				to.acct_id = from.acct_id; // CT_PRIMITIVE
+				to.acct_id_external = from.acct_id_external; // CT_PRIMITIVE
+				to.acct_name = from.acct_name.c_str(); // CT_STRING
+				to.nickname = from.nickname.c_str(); // CT_STRING
+				oTLA::time_timestamp_to_db(to.creation_time, from.creation_time, (float)9, (float)0); // CT_TIMESTAMP
+			}
+		};
+		// where clause classes
+		struct PK_by_acct_id { // PRIMARY_KEY
+			std::uint64_t acct_id; // bigint
+			BEGIN_OTLA_BINDING
+				OTLA_BIND_ATT_COLUMN_NAME(oTLA::TO_DB | oTLA::UNIQUE_FIELD, acct_id, "acct_id")
+			END_OTLA_BINDING
+
+			template < typename U, typename V > // packet to packet
+			static void copy(const U& from, V& to) {
+				to.acct_id = from.acct_id; // CT_PRIMITIVE
+			}
+			template < typename DB, typename T > // db to packet
+			static void copy_from( const DB& from, T& to ) {
+				to.acct_id = from.acct_id; // CT_PRIMITIVE
+			}
+			template < typename DB, typename T > // packet to db
+			static void copy_to( const T& from, DB& to ) {
+				to.acct_id = from.acct_id; // CT_PRIMITIVE
+			}
+		};
+		struct K_by_acct_id_external { // KEY
+			std::uint64_t acct_id_external; // bigint
+			BEGIN_OTLA_BINDING
+				OTLA_BIND_ATT_COLUMN_NAME(oTLA::TO_DB | oTLA::UNIQUE_FIELD, acct_id_external, "acct_id_external")
+			END_OTLA_BINDING
+
+			template < typename U, typename V > // packet to packet
+			static void copy(const U& from, V& to) {
+				to.acct_id_external = from.acct_id_external; // CT_PRIMITIVE
+			}
+			template < typename DB, typename T > // db to packet
+			static void copy_from( const DB& from, T& to ) {
+				to.acct_id_external = from.acct_id_external; // CT_PRIMITIVE
+			}
+			template < typename DB, typename T > // packet to db
+			static void copy_to( const T& from, DB& to ) {
+				to.acct_id_external = from.acct_id_external; // CT_PRIMITIVE
+			}
+		};
+		struct K_by_acct_name { // KEY
+			corn::TFixedStringA<50> acct_name; // varchar
+			BEGIN_OTLA_BINDING
+				OTLA_BIND_ATT_COLUMN_NAME(oTLA::TO_DB | oTLA::UNIQUE_FIELD, acct_name, "acct_name")
+			END_OTLA_BINDING
+
+			template < typename U, typename V > // packet to packet
+			static void copy(const U& from, V& to) {
+				to.acct_name = from.acct_name; // CT_STRING
+			}
+			template < typename DB, typename T > // db to packet
+			static void copy_from( const DB& from, T& to ) {
+				to.acct_name = from.acct_name.c_str(); // CT_STRING
+			}
+			template < typename DB, typename T > // packet to db
+			static void copy_to( const T& from, DB& to ) {
+				to.acct_name = from.acct_name.c_str(); // CT_STRING
+			}
+		};
+		struct PK_by_all { // PRIMARY_KEY_ALL
+			std::uint64_t acct_id; // bigint
+
+			BEGIN_OTLA_BINDING
+				OTLA_BIND_ATT_COLUMN_NAME(oTLA::TO_DB | oTLA::UNIQUE_FIELD, acct_id, "acct_id")
+			END_OTLA_BINDING
+
+			template < typename U, typename V > // packet to packet
+			static void copy(const U& from, V& to) {
+				to.acct_id = from.acct_id; // CT_PRIMITIVE
+			}
+			template < typename DB, typename T > // db to packet
+			static void copy_from( const DB& from, T& to ) {
+				to.acct_id = from.acct_id; // CT_PRIMITIVE
+			}
+			template < typename DB, typename T > // packet to db
+			static void copy_to( const T& from, DB& to ) {
+				to.acct_id = from.acct_id; // CT_PRIMITIVE
+			}
+		};
+
+		template < typename DB >
+		static oTLA::Persist<table_t> persist(DB* db, const TCHAR* db_name = nullptr)
+		{
+			oTLA::Persist<table_t> u(db, table_name(db_name).c_str() );
+			return std::move(u);
+		}
+
+		template < typename DB, typename Where >
+		static oTLA::search_t<table_t, DB,Where> search(DB* db, const Where& where, const TCHAR* db_name = nullptr)
+		{
+			oTLA::search_t<table_t, DB, Where> u(db, table_name(db_name).c_str(), where);
+			return std::move(u);
+		}
+
+		template < typename DB >
+		static oTLA::search_t<table_t, DB, oTLA::NullWhereClause> search(DB* db, const TCHAR* db_name = nullptr)
+		{
+			oTLA::search_t<table_t, DB, oTLA::NullWhereClause> u(db, table_name(db_name).c_str(), oTLA::NullWhereClause());
+			return std::move(u);
+		}
+		
+	};
+
+	// ...
+
+
+	/****************************************************************************
+	*
+	*	stored procedure: sp_get_account_box
+	*/
+	struct sp_get_account_box
+	{
+		static const char* name_A() { return "sp_get_account_box"; }
+		static const wchar_t* name_W() { return L"sp_get_account_box"; };
+		static const TCHAR* name() { return _T("sp_get_account_box"); };
+
+		static std::basic_string<TCHAR> sp_name( const TCHAR* db_name = nullptr )
+		{
+			return FormatString(_T("%s.%s"), db_name ? db_name : _T("bb_game"), name()).AsString();
+		}
+
+		struct sp_t {
+			struct {
+				std::uint64_t acct_id; // bigint
+
+				template < typename U, typename V > // packet to packet
+				static void copy(const U& from, V& to) {
+					to.acct_id = from.acct_id; // CT_PRIMITIVE
+				}
+				template < typename DB, typename T > // db to packet
+				static void copy_from( const DB& from, T& to ) {
+					to.acct_id = from.acct_id; // CT_PRIMITIVE
+				}
+				template < typename DB, typename T > // packet to db
+				static void copy_to( const T& from, DB& to ) {
+					to.acct_id = from.acct_id; // CT_PRIMITIVE
+				}
+				std::basic_string<TCHAR> as_string() const {
+					std::basic_stringstream<TCHAR> ss;
+					ss << _T(" in.") << _T("acct_id") << _T(":") << acct_id;
+					return ss.str();
+				}
+			} in;
+
+			struct out_t {
+				std::uint32_t result; // int
+
+				BEGIN_OTLA_BINDING
+					OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_FROM_DB, result, "result")
+				END_OTLA_BINDING
+
+				template < typename U, typename V > // packet to packet
+				static void copy(const U& from, V& to) {
+					to.result = from.result; // CT_PRIMITIVE
+				}
+				template < typename DB, typename T > // db to packet
+				static void copy_from( const DB& from, T& to ) {
+					to.result = from.result; // CT_PRIMITIVE
+				}
+				template < typename DB, typename T > // packet to db
+				static void copy_to( const T& from, DB& to ) {
+					to.result = from.result; // CT_PRIMITIVE
+				}
+				std::basic_string<TCHAR> as_string() const {
+					std::basic_stringstream<TCHAR> ss;
+					ss << _T(" in.") << _T("result") << _T(":") << result;
+					return ss.str();
+				}
+			} out;
+
+			struct result_set_t {
+				std::uint64_t acct_id; // bigint
+				static const auto box_type__max_size = 10;
+				std::uint32_t box_type[10]; // int
+				static const auto box_arena_tier__max_size = 10;
+				std::uint32_t box_arena_tier[10]; // int
+				static const auto time_to_unlock__max_size = 10;
+				oTLA::DB_Time_t time_to_unlock[10]; // timestamp
+
+				BEGIN_OTLA_BINDING
+					OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_OUT_ARG, acct_id, "acct_id")
+					OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_OUT_ARG, box_type[0], "box_type_0")
+					OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_OUT_ARG, box_type[1], "box_type_1")
+					OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_OUT_ARG, box_type[2], "box_type_2")
+					OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_OUT_ARG, box_type[3], "box_type_3")
+					OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_OUT_ARG, box_type[4], "box_type_4")
+					OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_OUT_ARG, box_type[5], "box_type_5")
+					OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_OUT_ARG, box_type[6], "box_type_6")
+					OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_OUT_ARG, box_type[7], "box_type_7")
+					OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_OUT_ARG, box_type[8], "box_type_8")
+					OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_OUT_ARG, box_type[9], "box_type_9")
+					OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_OUT_ARG, box_arena_tier[0], "box_arena_tier_0")
+					OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_OUT_ARG, box_arena_tier[1], "box_arena_tier_1")
+					OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_OUT_ARG, box_arena_tier[2], "box_arena_tier_2")
+					OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_OUT_ARG, box_arena_tier[3], "box_arena_tier_3")
+					OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_OUT_ARG, box_arena_tier[4], "box_arena_tier_4")
+					OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_OUT_ARG, box_arena_tier[5], "box_arena_tier_5")
+					OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_OUT_ARG, box_arena_tier[6], "box_arena_tier_6")
+					OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_OUT_ARG, box_arena_tier[7], "box_arena_tier_7")
+					OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_OUT_ARG, box_arena_tier[8], "box_arena_tier_8")
+					OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_OUT_ARG, box_arena_tier[9], "box_arena_tier_9")
+					OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_OUT_ARG, time_to_unlock[0], "time_to_unlock_0")
+					OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_OUT_ARG, time_to_unlock[1], "time_to_unlock_1")
+					OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_OUT_ARG, time_to_unlock[2], "time_to_unlock_2")
+					OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_OUT_ARG, time_to_unlock[3], "time_to_unlock_3")
+					OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_OUT_ARG, time_to_unlock[4], "time_to_unlock_4")
+					OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_OUT_ARG, time_to_unlock[5], "time_to_unlock_5")
+					OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_OUT_ARG, time_to_unlock[6], "time_to_unlock_6")
+					OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_OUT_ARG, time_to_unlock[7], "time_to_unlock_7")
+					OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_OUT_ARG, time_to_unlock[8], "time_to_unlock_8")
+					OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_OUT_ARG, time_to_unlock[9], "time_to_unlock_9")
+				END_OTLA_BINDING
+
+				template < typename U, typename V > // packet to packet
+				static void copy(const U& from, V& to) {
+					to.acct_id = from.acct_id; // CT_PRIMITIVE
+					for ( int i = 0; i < 10; ++i )
+						to.box_type[i] = from.box_type[i]; // CT_PRIMITIVE[]
+					for ( int i = 0; i < 10; ++i )
+						to.box_arena_tier[i] = from.box_arena_tier[i]; // CT_PRIMITIVE[]
+					for ( int i = 0; i < 10; ++i )
+						to.time_to_unlock[i] = from.time_to_unlock[i]; // CT_TIMESTAMP
+				}
+				template < typename DB, typename T > // db to packet
+				static void copy_from( const DB& from, T& to ) {
+					to.acct_id = from.acct_id; // CT_PRIMITIVE
+					for ( int i = 0; i < 10; ++i )
+						to.box_type[i] = from.box_type[i]; // CT_PRIMITIVE[]
+					for ( int i = 0; i < 10; ++i )
+						to.box_arena_tier[i] = from.box_arena_tier[i]; // CT_PRIMITIVE[]
+					for ( int i = 0; i < 10; ++i )
+						oTLA::time_db_to_timestamp(to.time_to_unlock[i], from.time_to_unlock[i], (float)0, (float)9); // CT_TIMESTAMP
+				}
+				template < typename DB, typename T > // packet to db
+				static void copy_to( const T& from, DB& to ) {
+					to.acct_id = from.acct_id; // CT_PRIMITIVE
+					for ( int i = 0; i < 10; ++i )
+						to.box_type[i] = from.box_type[i]; // CT_PRIMITIVE[]
+					for ( int i = 0; i < 10; ++i )
+						to.box_arena_tier[i] = from.box_arena_tier[i]; // CT_PRIMITIVE[]
+					for ( int i = 0; i < 10; ++i )
+						oTLA::time_db_to_timestamp(to.time_to_unlock[i], from.time_to_unlock[i], (float)9, (float)0);; // CT_TIMESTAMP
+				}
+				std::basic_string<TCHAR> as_string() const {
+					std::basic_stringstream<TCHAR> ss;
+					ss << _T(" in.") << _T("acct_id") << _T(":") << acct_id;
+					ss << _T(" in.") << _T("box_type[0]") << _T(":") << box_type[0];
+					ss << _T(" in.") << _T("box_type[1]") << _T(":") << box_type[1];
+					ss << _T(" in.") << _T("box_type[2]") << _T(":") << box_type[2];
+					ss << _T(" in.") << _T("box_type[3]") << _T(":") << box_type[3];
+					ss << _T(" in.") << _T("box_type[4]") << _T(":") << box_type[4];
+					ss << _T(" in.") << _T("box_type[5]") << _T(":") << box_type[5];
+					ss << _T(" in.") << _T("box_type[6]") << _T(":") << box_type[6];
+					ss << _T(" in.") << _T("box_type[7]") << _T(":") << box_type[7];
+					ss << _T(" in.") << _T("box_type[8]") << _T(":") << box_type[8];
+					ss << _T(" in.") << _T("box_type[9]") << _T(":") << box_type[9];
+					ss << _T(" in.") << _T("box_arena_tier[0]") << _T(":") << box_arena_tier[0];
+					ss << _T(" in.") << _T("box_arena_tier[1]") << _T(":") << box_arena_tier[1];
+					ss << _T(" in.") << _T("box_arena_tier[2]") << _T(":") << box_arena_tier[2];
+					ss << _T(" in.") << _T("box_arena_tier[3]") << _T(":") << box_arena_tier[3];
+					ss << _T(" in.") << _T("box_arena_tier[4]") << _T(":") << box_arena_tier[4];
+					ss << _T(" in.") << _T("box_arena_tier[5]") << _T(":") << box_arena_tier[5];
+					ss << _T(" in.") << _T("box_arena_tier[6]") << _T(":") << box_arena_tier[6];
+					ss << _T(" in.") << _T("box_arena_tier[7]") << _T(":") << box_arena_tier[7];
+					ss << _T(" in.") << _T("box_arena_tier[8]") << _T(":") << box_arena_tier[8];
+					ss << _T(" in.") << _T("box_arena_tier[9]") << _T(":") << box_arena_tier[9];
+					ss << _T(" in.") << _T("time_to_unlock[0]") << _T(":") << time_to_unlock[0];
+					ss << _T(" in.") << _T("time_to_unlock[1]") << _T(":") << time_to_unlock[1];
+					ss << _T(" in.") << _T("time_to_unlock[2]") << _T(":") << time_to_unlock[2];
+					ss << _T(" in.") << _T("time_to_unlock[3]") << _T(":") << time_to_unlock[3];
+					ss << _T(" in.") << _T("time_to_unlock[4]") << _T(":") << time_to_unlock[4];
+					ss << _T(" in.") << _T("time_to_unlock[5]") << _T(":") << time_to_unlock[5];
+					ss << _T(" in.") << _T("time_to_unlock[6]") << _T(":") << time_to_unlock[6];
+					ss << _T(" in.") << _T("time_to_unlock[7]") << _T(":") << time_to_unlock[7];
+					ss << _T(" in.") << _T("time_to_unlock[8]") << _T(":") << time_to_unlock[8];
+					ss << _T(" in.") << _T("time_to_unlock[9]") << _T(":") << time_to_unlock[9];
+					return ss.str();
+				}
+			};
+
+			BEGIN_OTLA_BINDING
+				OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_IN_ARG, in.acct_id, "acct_id")
+				OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_OUT_SET_ARG, out.result, "result")
+			END_OTLA_BINDING
+		}; // struct sp {
+
+		//
+		oTLA::StoredProcedure<sp_t> sp;
+		oTLA::Search<sp_t::out_t> out;
+		oTLA::Search<sp_t::result_set_t> result;
+		oTLA::Search<sp_t::result_set_t> result_end;
+
+		struct result_iterator {
+			oTLA::Search<sp_t::result_set_t>* s_;
+			result_iterator(oTLA::Search<sp_t::result_set_t>* s) : s_(s) {}			
+			oTLA::Search<sp_t::result_set_t>::reference operator*() const { return *(*s_); }
+			oTLA::Search<sp_t::result_set_t>::pointer operator->() const { return (*s_).operator->(); }
+			bool operator!= (const result_iterator & rhs) const { return (*s_) != (*rhs.s_); }
+			result_iterator& operator++() { ++(*s_); return *this; }
+		};
+		result_iterator begin() {
+			return result_iterator(&result);
+		}
+		result_iterator end() {
+			return result_iterator(&result_end);
+		}
+		int size() const {
+			return result.Get_Row_Processed_Count();
+		}
+		
+		template < typename UPDATER >
+		void open( UPDATER* u, const TCHAR* db_name = nullptr )
+		{
+			result.SetExternalResultStream(sp.Get_Result_Stream());
+			sp.Open(u, sp_name(db_name).c_str(), result);
+			out.Open(u,nullptr);
+		}
+		template < typename T_acct_id >
+		explicit sp_get_account_box( char _dummy, const T_acct_id& acct_id ) {
+			sp->in.acct_id = acct_id; // DEFAULT
+		}
+		template < typename T_acct_id >
+		void init( const T_acct_id& acct_id ) {
+			sp->in.acct_id = acct_id; // DEFAULT
+		}
+		template < typename PacketType >
+		explicit sp_get_account_box( const PacketType* p ) {
+			init( 
+				p->acct_id
+			);
+		}
+	private:
+		sp_get_account_box() = delete;
+	};
+
+	/****************************************************************************
+	*
+	*	stored procedure: sp_account_login
+	*/
+	struct sp_account_login
+	{
+		static const char* name_A() { return "sp_account_login"; }
+		static const wchar_t* name_W() { return L"sp_account_login"; };
+		static const TCHAR* name() { return _T("sp_account_login"); };
+
+		static std::basic_string<TCHAR> sp_name( const TCHAR* db_name = nullptr )
+		{
+			return FormatString(_T("%s.%s"), db_name ? db_name : _T("bb_game"), name()).AsString();
+		}
+
+		struct sp_t {
+			struct {
+				corn::TFixedStringA<50> acct_name; // varchar
+				corn::TFixedStringA<50> ip_address; // varchar
+				std::uint32_t port; // int
+
+				template < typename U, typename V > // packet to packet
+				static void copy(const U& from, V& to) {
+					to.acct_name = from.acct_name; // CT_STRING
+					to.ip_address = from.ip_address; // CT_STRING
+					to.port = from.port; // CT_PRIMITIVE
+				}
+				template < typename DB, typename T > // db to packet
+				static void copy_from( const DB& from, T& to ) {
+					to.acct_name = from.acct_name.c_str(); // CT_STRING
+					to.ip_address = from.ip_address.c_str(); // CT_STRING
+					to.port = from.port; // CT_PRIMITIVE
+				}
+				template < typename DB, typename T > // packet to db
+				static void copy_to( const T& from, DB& to ) {
+					to.acct_name = from.acct_name.c_str(); // CT_STRING
+					to.ip_address = from.ip_address.c_str(); // CT_STRING
+					to.port = from.port; // CT_PRIMITIVE
+				}
+				std::basic_string<TCHAR> as_string() const {
+					std::basic_stringstream<TCHAR> ss;
+					ss << _T(" in.") << _T("acct_name") << _T(":") << acct_name.c_str();
+					ss << _T(" in.") << _T("ip_address") << _T(":") << ip_address.c_str();
+					ss << _T(" in.") << _T("port") << _T(":") << port;
+					return ss.str();
+				}
+			} in;
+
+			struct out_t {
+				std::uint32_t result; // int
+
+				BEGIN_OTLA_BINDING
+					OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_FROM_DB, result, "result")
+				END_OTLA_BINDING
+
+				template < typename U, typename V > // packet to packet
+				static void copy(const U& from, V& to) {
+					to.result = from.result; // CT_PRIMITIVE
+				}
+				template < typename DB, typename T > // db to packet
+				static void copy_from( const DB& from, T& to ) {
+					to.result = from.result; // CT_PRIMITIVE
+				}
+				template < typename DB, typename T > // packet to db
+				static void copy_to( const T& from, DB& to ) {
+					to.result = from.result; // CT_PRIMITIVE
+				}
+				std::basic_string<TCHAR> as_string() const {
+					std::basic_stringstream<TCHAR> ss;
+					ss << _T(" in.") << _T("result") << _T(":") << result;
+					return ss.str();
+				}
+			} out;
+
+
+			BEGIN_OTLA_BINDING
+				OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_IN_ARG, in.acct_name, "acct_name")
+				OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_IN_ARG, in.ip_address, "ip_address")
+				OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_IN_ARG, in.port, "port")
+				OTLA_BIND_ATT_COLUMN_NAME(oTLA::SP_OUT_SET_ARG, out.result, "result")
+			END_OTLA_BINDING
+		}; // struct sp {
+
+		//
+		oTLA::StoredProcedure<sp_t> sp;
+		oTLA::Search<sp_t::out_t> out;
+		
+		template < typename UPDATER >
+		void open( UPDATER* u, const TCHAR* db_name = nullptr )
+		{
+			sp.Open(u, sp_name(db_name).c_str());
+			out.Open(u,nullptr);
+		}
+		template < typename T_acct_name, typename T_ip_address, typename T_port >
+		explicit sp_account_login( char _dummy, const T_acct_name& acct_name, const T_ip_address& ip_address, const T_port& port ) {
+			sp->in.acct_name = acct_name; // DEFAULT
+			sp->in.ip_address = ip_address; // DEFAULT
+			sp->in.port = port; // DEFAULT
+		}
+		template < typename T_acct_name, typename T_ip_address, typename T_port >
+		void init( const T_acct_name& acct_name, const T_ip_address& ip_address, const T_port& port ) {
+			sp->in.acct_name = acct_name; // DEFAULT
+			sp->in.ip_address = ip_address; // DEFAULT
+			sp->in.port = port; // DEFAULT
+		}
+		template < typename PacketType >
+		explicit sp_account_login( const PacketType* p ) {
+			init( 
+				p->acct_name, p->ip_address, p->port
+			);
+		}
+	private:
+		sp_account_login() = delete;
+	};
+
+	// ...
+
+} // namespace
+#pragma warning(pop)
+</code></pre>
+
+
+<div class="code_block"><button id="btn_db_cs">show/hide</button> gen_cs.cs</div>
+<pre class="code_block"><code id="db_cs" class="csharp">
+/****************************************************************************
+ * 	
+ *  generated by PacketCompiler.
+ *  do not modify this.
+ * 
+ *  time: 2018-07-11 13:42:11.005
+ *  
+ */
+using System;
+using System.Diagnostics;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+
+namespace cl_ms {
+    /// start of RawCode
+    
+    public enum ERoomType
+    {
+        RT_ROOM_DEFAULT = 0,
+        RT_ROOM_PVE,
+        RT_ROOM_PVP,
+        RT_ROOM_END,
+        RT_ROOM_TEST = 0xffff,
+    }
+    
+    /// endof RawCode
+
+    /// class Util
+    /// <summary>
+    /// 
+    /// </summary>
+    public class Util
+    {
+        public const UInt64 VERSION = 0x0000000000000020; // 32
+        public const UInt64 BUILD_VERSION = 0x01d418d18807a1a0; // 131757577310020000
+		
+        public const UInt64 SALT_UINT64 = 0x753564cc275f0712;		
+        public static byte[] COMPILE_TIME_PASS_BYTES = new byte[] { 0xd8,0x3e,0x84,0x32,0x35,0x62,0xb9,0x7d,0x56,0x0b,0x31,0x62,0xfc,0x3d,0x35,0x2b,0xac,0x3c,0x10,0x2c,0xf7,0x24,0xbc,0x0d,0xf3,0x1e,0xeb,0x76,0x99,0x41,0x82,0x49,0xdc,0x1a,0xbe,0x48,0xb9,0x01,0x94,0x55,0x93,0x49,0x11,0x1b,0x94,0x69,0xc6,0x12,0xea,0x7f,0x84,0x49,0x16,0x18,0xed,0x4e,0xb3,0x14,0xac,0x4e,0x55,0x60,0x4f,0x08 }; // do not modify
+        // ...
+    }
+	public enum Error {
+		SUCCESS = 0, // success
+		ERR_GENERAL = 1, // error
+		ERR_NOT_IMPLEMENTED = 2, // not implemented
+		ERR_SESSION_SERVER = 3, // session error
+		ERR_HAS_PENDING_REQUEST = 4, // client should wait until last response receive
+		ERR_ALREADY_LOGGED_IN = 100, // already logged in
+		ERR_WRONG_VERSION = 101, // wrong version
+		ERR_FORCE_DISCONNECT_INACTIVE_ACCOUNT = 102, // disconnect inactive account, try to logged in again
+		ERR_SESSION_NOT_FOUND = 103, // ERR_SESSION_NOT_FOUND
+		// ...
+	}
+    // send packet list
+    public enum Send {
+		CM_VERSION_CHECK_REQ = 1000,
+		CM_LOGIN_REQ = 1001,
+		CM_KEEP_ALIVE_REQ = 1002,
+		CM_LIST_CHARACTER_REQ = 1003,
+		CM_ROOM_CREATE_OR_JOIN_REQ = 1004,
+		CM_ROOM_JOIN_REQ = 1005,
+		CM_ROOM_LEAVE_REQ = 1006,
+		CM_ROOM_CHAT_REQ = 1007,
+		CM_ROOM_READY_REQ = 1008,
+		CM_ROOM_KICK_REQ = 1009,
+		CM_ROOM_ADD_NPCREQ = 1010,
+    }
+	// ...	
+   /****************************************************************************
+    *
+    * Packet Classes for Send/Recv
+    */
+    // '버전 체크'
+    public partial class Send_CM_VersionCheckReq : ISend
+    {
+        public static System.UInt16 Type = (System.UInt16)Send.CM_VERSION_CHECK_REQ;
+        public static System.String GetPacketName() { return "CM_VERSION_CHECK_REQ"; }
+        public virtual System.UInt16 _Type { get { return Type; } }
+        public virtual System.String _Name { get { return GetPacketName(); } }
+        public virtual System.UInt16 GetPacketId() { return _Type; }
+        // public byte[] GetBytes()
+        public UInt64 version; // '버전; 다르면 요청 실패'
+        public UInt64 build_version; // '빌드버전; 달라도 성공. 진행 여부는 클라이언트에서 판단'
+        public UInt64 client_key; // 'reserved'
+    }
+
+    public partial class Send_CM_LoginReq : ISend
+    {
+        public static System.UInt16 Type = (System.UInt16)Send.CM_LOGIN_REQ;
+        public static System.String GetPacketName() { return "CM_LOGIN_REQ"; }
+        public virtual System.UInt16 _Type { get { return Type; } }
+        public virtual System.String _Name { get { return GetPacketName(); } }
+        public virtual System.UInt16 GetPacketId() { return _Type; }
+        // public byte[] GetBytes()
+        public UInt64 version; // '버전; 다르면 요청 실패'
+        public UInt64 build_version; // '빌드버전; 달라도 성공. 진행 여부는 클라이언트에서 판단'
+        public const UInt32 acct_name__constrain_max_size = 50; // will assert if the size exceeds 50
+        public String acct_name = null; 
+        public const UInt32 acct_passwd__constrain_max_size = 16; // will assert if the size exceeds 16
+        public String acct_passwd = null; 
+    }
+
+    // '버전 체크'
+    public partial class Send_CM_KeepAliveReq : ISend
+    {
+        public static System.UInt16 Type = (System.UInt16)Send.CM_KEEP_ALIVE_REQ;
+        public static System.String GetPacketName() { return "CM_KEEP_ALIVE_REQ"; }
+        public virtual System.UInt16 _Type { get { return Type; } }
+        public virtual System.String _Name { get { return GetPacketName(); } }
+        public virtual System.UInt16 GetPacketId() { return _Type; }
+        // public byte[] GetBytes()
+        public System.DateTime client_time; 
+    }
+
+    ...
+
+   /****************************************************************************
+    *
+    * Serializer for Send/Recv
+    */
+    // C# Send Serializer
+    public partial class Send_CM_VersionCheckReq : ISend
+    {
+        public virtual byte[] GetBytes()
+        {
+            System.IO.MemoryStream stream = new System.IO.MemoryStream();
+            System.IO.BinaryWriter writer = new System.IO.BinaryWriter(stream);
+            System.IO.MemoryStream tail_stream = new System.IO.MemoryStream();
+            System.IO.BinaryWriter tail_writer = new System.IO.BinaryWriter(tail_stream);
+            int offset = 0;
+            
+            
+            // UInt64 version
+            writer.Write( this.version );
+            
+            // UInt64 build_version
+            writer.Write( this.build_version );
+            
+            // UInt64 client_key
+            writer.Write( this.client_key );
+            
+            if ( offset > 0 )
+                writer.Write(tail_stream.ToArray());
+            return stream.ToArray();
+        }
+    }
+    // C# Send Serializer
+    public partial class Send_CM_LoginReq : ISend
+    {
+        public virtual byte[] GetBytes()
+        {
+            System.IO.MemoryStream stream = new System.IO.MemoryStream();
+            System.IO.BinaryWriter writer = new System.IO.BinaryWriter(stream);
+            System.IO.MemoryStream tail_stream = new System.IO.MemoryStream();
+            System.IO.BinaryWriter tail_writer = new System.IO.BinaryWriter(tail_stream);
+            int offset = 0;
+            
+            
+            // UInt64 version
+            writer.Write( this.version );
+            
+            // UInt64 build_version
+            writer.Write( this.build_version );
+            
+            // String acct_name
+            if ( this.acct_name == null ) this.acct_name = "";
+            Trace.Assert(this.acct_name.Length <= Send_CM_LoginReq.acct_name__constrain_max_size ); 
+            writer.Write( (System.UInt64)offset );
+            byte[] acct_name_buf = Util.MBCS.GetBytes(this.acct_name);
+            tail_writer.Write(acct_name_buf);
+            tail_writer.Write((byte)0);
+            offset += acct_name_buf.Length + 1;
+            
+            // String acct_passwd
+            if ( this.acct_passwd == null ) this.acct_passwd = "";
+            Trace.Assert(this.acct_passwd.Length <= Send_CM_LoginReq.acct_passwd__constrain_max_size ); 
+            writer.Write( (System.UInt64)offset );
+            byte[] acct_passwd_buf = Util.MBCS.GetBytes(this.acct_passwd);
+            tail_writer.Write(acct_passwd_buf);
+            tail_writer.Write((byte)0);
+            offset += acct_passwd_buf.Length + 1;
+            
+            if ( offset > 0 )
+                writer.Write(tail_stream.ToArray());
+            return stream.ToArray();
+        }
+    }
+
+	...
+
+    // C# Recv Serializer
+    public partial class Recv_MC_VersionCheckRes
+    {
+        public void Read(byte[] data, int size)
+        {
+            System.IO.MemoryStream stream = new System.IO.MemoryStream(data);
+            System.IO.BinaryReader reader = new System.IO.BinaryReader(stream);
+            List<Util.runLater> runLaterList = new List<Util.runLater>();
+            long begin_offset = 0;
+            
+            
+            // UInt32 result
+            this.result = reader.ReadUInt32();
+            
+            // UInt64 required_version
+            this.required_version = reader.ReadUInt64();
+            
+            // UInt64 required_build_version
+            this.required_build_version = reader.ReadUInt64();
+            
+            // String redirection_url
+            long redirection_url_offset = (long)reader.ReadUInt64();
+            runLaterList.Add(() => {
+                stream.Position = begin_offset + redirection_url_offset;
+                this.redirection_url = Util.ReadCString(reader);
+            });
+            
+            // run all runLaters
+            begin_offset = stream.Position;
+            foreach (Util.runLater run in runLaterList)
+                run();
+        }
+    }
+    // C# Recv Serializer
+    public partial class Recv_MC_LoginRes
+    {
+        public void Read(byte[] data, int size)
+        {
+            System.IO.MemoryStream stream = new System.IO.MemoryStream(data);
+            System.IO.BinaryReader reader = new System.IO.BinaryReader(stream);
+            List<Util.runLater> runLaterList = new List<Util.runLater>();
+            long begin_offset = 0;
+            
+            
+            // UInt32 result
+            this.result = reader.ReadUInt32();
+            
+            // UInt64 required_version
+            this.required_version = reader.ReadUInt64();
+            
+            // UInt64 required_build_version
+            this.required_build_version = reader.ReadUInt64();
+            
+            // String acct_name
+            long acct_name_offset = (long)reader.ReadUInt64();
+            runLaterList.Add(() => {
+                stream.Position = begin_offset + acct_name_offset;
+                this.acct_name = Util.ReadCString(reader);
+            });
+            
+            // UInt64 session_id
+            this.session_id = reader.ReadUInt64();
+            
+            // UInt64 acct_id
+            this.acct_id = reader.ReadUInt64();
+            
+            // UInt64 acct_id_external
+            this.acct_id_external = reader.ReadUInt64();
+            
+            // String nickname
+            long nickname_offset = (long)reader.ReadUInt64();
+            runLaterList.Add(() => {
+                stream.Position = begin_offset + nickname_offset;
+                this.nickname = Util.ReadCString(reader);
+            });
+            
+            // System.DateTime creation_time
+            this.creation_time = System.DateTime.FromFileTime( 0 );
+            try { this.creation_time = System.DateTime.FromFileTime( reader.ReadInt64() ); } catch ( System.Exception e ) {}
+            
+            // UInt32 char_count
+            this.char_count = reader.ReadUInt32();
+            
+            // UInt64 curr_char_id
+            this.curr_char_id = reader.ReadUInt64();
+            
+            // UInt32 gold
+            this.gold = reader.ReadUInt32();
+            
+            // UInt32 ruby
+            this.ruby = reader.ReadUInt32();
+            
+            // UInt32 honor
+            this.honor = reader.ReadUInt32();
+            
+            // UInt32 max_ap
+            this.max_ap = reader.ReadUInt32();
+            
+            // System.DateTime time_to_max_ap
+            this.time_to_max_ap = System.DateTime.FromFileTime( 0 );
+            try { this.time_to_max_ap = System.DateTime.FromFileTime( reader.ReadInt64() ); } catch ( System.Exception e ) {}
+            
+            // UInt32 ap_cool_time
+            this.ap_cool_time = reader.ReadUInt32();
+            
+            // System.DateTime last_logged_in
+            this.last_logged_in = System.DateTime.FromFileTime( 0 );
+            try { this.last_logged_in = System.DateTime.FromFileTime( reader.ReadInt64() ); } catch ( System.Exception e ) {}
+            
+            // UInt32 acct_level
+            this.acct_level = reader.ReadUInt32();
+            
+            // UInt32 acct_exp
+            this.acct_exp = reader.ReadUInt32();
+            
+            // UInt32 max_inventory_count
+            this.max_inventory_count = reader.ReadUInt32();
+            
+            // UInt32 last_processed_system_mail_id
+            this.last_processed_system_mail_id = reader.ReadUInt32();
+            
+            // System.DateTime time_to_free_product[10]
+            this.time_to_free_product = new System.DateTime[10];
+            for ( int i = 0; i < 10; ++i )
+            {
+                this.time_to_free_product[i] = System.DateTime.FromFileTime( 0 );
+        		try { this.time_to_free_product[i] = System.DateTime.FromFileTime( reader.ReadInt64() ); } catch ( System.Exception e ) {}
+            }
+            
+            
+            // UInt32 max_box_inventory_count
+            this.max_box_inventory_count = reader.ReadUInt32();
+            
+            // run all runLaters
+            begin_offset = stream.Position;
+            foreach (Util.runLater run in runLaterList)
+                run();
+        }
+    }
+
+} // end of cl_ms
+
+</code></pre>
+
+<h3><a href="https://github.com/icedac/icedac.github.io/tree/master/cv/download/sql_schema_compilter">see full input, output source</a></h3>
+
+
+<footer>
+	page created with <a href="https://highlightjs.org/">highlightjs</a>, <a href="https://jquery.com/">jQuery</a>, html5.
+	<br><br>
+	Copyright (C) 2018 by icedac@gmail.com.
+</footer>
+
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-95777-7"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-95777-7');
+</script>
+</body>
+</html>
