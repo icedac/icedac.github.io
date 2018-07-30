@@ -14,6 +14,7 @@
 - mutex - 상호 베제 lock. cs 구역을 만들때 보통 사용하는 lock.
 - semaphore - mutex와 비슷하나 CS 구역에 들어올수 있는 theread 수 제한을 count 하는 장치.
 - event -  대기 중인 쓰레드를 깨우는 singal
+- lock-free/wait-free - http://concurrencyfreaks.blogspot.com/2013/05/lock-free-and-wait-free-definition-and.html
 
 # network
 - iocp - kernel이 thread pool을 관리해서 context switching을 최대한 줄여줌. buffer copy를 최소한으로 줄일 수 있음.
