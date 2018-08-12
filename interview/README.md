@@ -6,6 +6,8 @@
 - override
 - explicit
 - move semantics
+- copy elision
+- vector, array, list, deque, priority_queue, map, unordered_map
 
 # thread
 - deadlock - 
@@ -26,3 +28,6 @@
 
 # db
 - stored procedure -  한층의 보안, 추상화. 호출 수, 호출 데이터가 적어 짐. DB에서 쿼리 최적화를 할 수 있음.
+
+# restapi
+- safe / idempotent - safe=const, idempotent=retriable http://restcookbook.com/HTTP%20Methods/idempotency/
